@@ -3,7 +3,7 @@
  * Plugin Name: KSM Post Scheduler
  * Plugin URI: https://kraftysprouts.com
  * Description: Automatically schedules posts from a specific status to publish at random times
- * Version: 1.4.5
+ * Version: 1.4.6
  * Author: Krafty Sprouts Media, LLC
  * Author URI: https://kraftysprouts.com
  * License: GPL v2 or later
@@ -16,7 +16,7 @@
  * Network: false
  * 
  * @package KSM_Post_Scheduler
- * @version 1.4.5
+ * @version 1.4.6
  * @author KraftySpoutsMedia, LLC
  * @copyright 2025 KraftySpouts
  * @license GPL-2.0-or-later
@@ -168,9 +168,13 @@ class KSM_PS_Main {
             $updated_options = array_merge($default_options, $existing_options);
             $updated_options['version'] = KSM_PS_VERSION;
             
-            // Force update time values to 12-hour format (since no existing users)
-            $updated_options['start_time'] = '9:00 AM';
-            $updated_options['end_time'] = '6:00 PM';
+            // Only set default times if they don't exist or are invalid
+            if (empty($updated_options['start_time']) || !preg_match('/^(1[0-2]|[1-9]):[0-5][0-9]\s?(AM|PM|am|pm)$/i', $updated_options['start_time'])) {
+                $updated_options['start_time'] = '9:00 AM';
+            }
+            if (empty($updated_options['end_time']) || !preg_match('/^(1[0-2]|[1-9]):[0-5][0-9]\s?(AM|PM|am|pm)$/i', $updated_options['end_time'])) {
+                $updated_options['end_time'] = '6:00 PM';
+            }
             
             update_option($this->option_name, $updated_options);
         }
@@ -750,9 +754,15 @@ class KSM_PS_Main {
         foreach ($posts as $index => $post) {
             // Check if we need to move to the next day BEFORE calculating target date
             if ($posts_scheduled_for_current_day >= $posts_per_day) {
-                $current_day_offset++;
+                // Find the next valid day after the current one
+                do {
+                    $current_day_offset++;
+                    $next_timestamp = $this->get_next_valid_day($current_day_offset, $days_active, $can_schedule_today);
+                    $next_date = wp_date('Y-m-d', $next_timestamp);
+                } while (isset($daily_schedules[$next_date]) && count($daily_schedules[$next_date]) >= $posts_per_day);
+                
                 $posts_scheduled_for_current_day = 0;
-                error_log("KSM DEBUG - Moving to next day (offset: $current_day_offset) - current day reached limit of $posts_per_day posts");
+                error_log("KSM DEBUG - Moving to next valid day (offset: $current_day_offset) - current day reached limit of $posts_per_day posts");
             }
             
             // Find the next valid scheduling day

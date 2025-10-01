@@ -2,6 +2,28 @@
 
 All notable changes to the KSM Post Scheduler plugin will be documented in this file.
 
+## [1.4.6] - 01/10/2025
+
+### Fixed
+- **CONFIGURATION BUG**: Fixed issue where default start and end times were being forced on every plugin update/activation
+- Modified activation logic to only set default times if they are empty or invalid, preserving user-configured times
+- **POSTS PER DAY LIMIT**: Fixed critical bug where posts per day limit was not respected when certain days were unchecked
+- Corrected `$current_day_offset` increment logic to properly advance to next valid day when daily limit is reached
+- Resolved issue where all posts would be scheduled on Monday when Saturday/Sunday were unchecked
+- **TIMESTAMP CALCULATION**: Fixed timestamp conversion bug using proper WordPress timezone handling with `DateTime::createFromFormat`
+
+### Improved
+- Enhanced day distribution logic to work correctly with any combination of checked/unchecked days
+- Added comprehensive error handling for datetime parsing failures
+- Verified scheduling works properly for weekdays only, weekends only, specific days, and single-day configurations
+- Improved timezone handling to prevent "Calculated time is in the past" errors
+
+### Technical
+- Updated `activate()` method to preserve existing start/end time configurations
+- Fixed `$current_day_offset` increment in scheduling loop to ensure proper day progression
+- Replaced `strtotime()` with `DateTime::createFromFormat()` for more reliable timestamp conversion
+- Added proper WordPress timezone support using `wp_timezone()` instead of string concatenation
+
 ## [1.4.5] - 01/10/2025
 
 ### Fixed
