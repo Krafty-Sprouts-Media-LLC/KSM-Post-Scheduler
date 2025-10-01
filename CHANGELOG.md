@@ -2,6 +2,40 @@
 
 All notable changes to the KSM Post Scheduler plugin will be documented in this file.
 
+## [1.4.7] - 01/10/2025
+
+### Fixed
+- **VALIDATION LOGIC**: Fixed overly strict time validation that prevented scheduling when available time was exactly sufficient
+- Changed validation condition from `>=` to `>` in both PHP and JavaScript to allow exact time matches
+- Resolved "Not enough time" error that occurred even when time was precisely adequate for scheduled posts
+
+### Enhanced
+- **ERROR MESSAGES**: Significantly improved error messages with detailed calculations and actionable suggestions
+- Added specific time breakdowns showing available vs required time in both hours/minutes and total minutes
+- Included smart suggestions to reduce posts per day, extend end time, or reduce minimum interval
+- **REAL-TIME CALCULATOR**: Added dynamic time analysis display that updates as users modify settings
+- Shows available time window, required time for posts, and current status (sufficient/insufficient)
+- Provides instant feedback without requiring form submission
+- **SMART SUGGESTIONS**: Implemented intelligent recommendation system with clickable buttons
+- Auto-calculates optimal settings: fewer posts per day, extended end times, or reduced intervals
+- One-click application of suggestions with visual feedback and automatic recalculation
+
+### Improved
+- **USER EXPERIENCE**: Enhanced admin interface with better guidance and real-time feedback
+- Added comprehensive time calculator showing detailed breakdowns of scheduling requirements
+- Implemented responsive design for suggestion buttons and calculator display
+- Added smooth transitions and hover effects for better interaction feedback
+- **VALIDATION FEEDBACK**: Replaced generic error messages with specific, actionable guidance
+- Real-time validation updates as users type or change settings
+- Clear visual indicators for valid vs invalid configurations
+
+### Technical
+- Updated validation logic in `ksm-post-scheduler.php` line 444 and `admin.js` line 244
+- Added `updateTimeCalculator()` and `generateSmartSuggestions()` functions to admin.js
+- Implemented `applySuggestion()` method for one-click setting adjustments
+- Enhanced CSS with new styles for calculator display and suggestion buttons
+- Added proper event handling for dynamic suggestion interactions
+
 ## [1.4.6] - 01/10/2025
 
 ### Fixed

@@ -3,7 +3,7 @@
  * Plugin Name: KSM Post Scheduler
  * Plugin URI: https://kraftysprouts.com
  * Description: Automatically schedules posts from a specific status to publish at random times
- * Version: 1.4.6
+ * Version: 1.4.7
  * Author: Krafty Sprouts Media, LLC
  * Author URI: https://kraftysprouts.com
  * License: GPL v2 or later
@@ -16,7 +16,7 @@
  * Network: false
  * 
  * @package KSM_Post_Scheduler
- * @version 1.4.6
+ * @version 1.4.7
  * @author KraftySpoutsMedia, LLC
  * @copyright 2025 KraftySpouts
  * @license GPL-2.0-or-later
@@ -441,8 +441,26 @@ class KSM_PS_Main {
                 $available_minutes = $end_minutes - $start_minutes;
                 $required_minutes = ($posts_per_day - 1) * $min_interval;
                 
-                if ($required_minutes >= $available_minutes) {
-                    $validation_errors[] = __('Not enough time between start and end time for the specified number of posts with minimum intervals.', 'ksm-post-scheduler');
+                if ($required_minutes > $available_minutes) {
+                    $available_hours = floor($available_minutes / 60);
+                    $available_mins = $available_minutes % 60;
+                    $required_hours = floor($required_minutes / 60);
+                    $required_mins = $required_minutes % 60;
+                    
+                    $error_message = sprintf(
+                        __('Not enough time! You need %d hours %d minutes (%d minutes total) but only have %d hours %d minutes (%d minutes total) available. Suggestions: Reduce posts to %d per day, OR extend end time by %d minutes, OR reduce interval to %d minutes.', 'ksm-post-scheduler'),
+                        $required_hours,
+                        $required_mins,
+                        $required_minutes,
+                        $available_hours,
+                        $available_mins,
+                        $available_minutes,
+                        max(1, floor($available_minutes / $min_interval) + 1),
+                        $required_minutes - $available_minutes,
+                        max(5, floor($available_minutes / ($posts_per_day - 1)))
+                    );
+                    
+                    $validation_errors[] = $error_message;
                 }
             }
         }

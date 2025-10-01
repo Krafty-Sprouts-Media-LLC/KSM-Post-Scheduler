@@ -47,6 +47,9 @@
             
             // Form submission validation
             $('form').on('submit', this.validateForm);
+            
+            // Smart suggestion buttons
+            $(document).on('click', '.suggestion-btn', this.applySuggestion);
         },
         
         /**
@@ -241,9 +244,28 @@
                 var requiredMinutes = (postsPerDay - 1) * minInterval;
                 
                 // Check if there's enough time
-                if (requiredMinutes >= availableMinutes) {
-                    KSM_PS_Admin.addValidationError('time_window', ksm_ps_ajax.strings.time_window_error);
+                if (requiredMinutes > availableMinutes) {
+                    var availableHours = Math.floor(availableMinutes / 60);
+                    var availableMins = availableMinutes % 60;
+                    var requiredHours = Math.floor(requiredMinutes / 60);
+                    var requiredMins = requiredMinutes % 60;
+                    
+                    var maxPosts = Math.max(1, Math.floor(availableMinutes / minInterval) + 1);
+                    var extraMinutesNeeded = requiredMinutes - availableMinutes;
+                    var suggestedInterval = Math.max(5, Math.floor(availableMinutes / (postsPerDay - 1)));
+                    
+                    var errorMessage = 'Not enough time! You need ' + requiredHours + 'h ' + requiredMins + 'm (' + requiredMinutes + ' minutes total) but only have ' + 
+                                     availableHours + 'h ' + availableMins + 'm (' + availableMinutes + ' minutes total) available. ' +
+                                     'Suggestions: Reduce posts to ' + maxPosts + ' per day, OR extend end time by ' + extraMinutesNeeded + ' minutes, OR reduce interval to ' + suggestedInterval + ' minutes.';
+                    
+                    KSM_PS_Admin.addValidationError('time_window', errorMessage);
+                    
+                    // Update the time calculator display
+                    KSM_PS_Admin.updateTimeCalculator(availableMinutes, requiredMinutes, postsPerDay, minInterval);
                     return false;
+                } else {
+                    // Update the time calculator display for valid scenarios
+                    KSM_PS_Admin.updateTimeCalculator(availableMinutes, requiredMinutes, postsPerDay, minInterval);
                 }
             }
             
@@ -417,6 +439,140 @@
             }
             
             return true;
+        },
+        
+        /**
+         * Update time calculator display
+         */
+        updateTimeCalculator: function(availableMinutes, requiredMinutes, postsPerDay, minInterval) {
+            var $calculator = $('#ksm-time-calculator');
+            if ($calculator.length === 0) {
+                // Create calculator if it doesn't exist
+                var calculatorHtml = '<div id="ksm-time-calculator" class="ksm-time-calculator">' +
+                    '<h4>📊 Time Analysis</h4>' +
+                    '<div class="time-stats">' +
+                        '<div class="stat-item">' +
+                            '<span class="stat-label">Available Time:</span>' +
+                            '<span class="stat-value" id="available-time"></span>' +
+                        '</div>' +
+                        '<div class="stat-item">' +
+                            '<span class="stat-label">Required Time:</span>' +
+                            '<span class="stat-value" id="required-time"></span>' +
+                        '</div>' +
+                        '<div class="stat-item">' +
+                            '<span class="stat-label">Status:</span>' +
+                            '<span class="stat-value" id="time-status"></span>' +
+                        '</div>' +
+                    '</div>' +
+                    '<div id="smart-suggestions" class="smart-suggestions"></div>' +
+                '</div>';
+                
+                $('#ksm_ps_end_time').closest('.form-group').after(calculatorHtml);
+                $calculator = $('#ksm-time-calculator');
+            }
+            
+            // Update calculator values
+            var availableHours = Math.floor(availableMinutes / 60);
+            var availableMins = availableMinutes % 60;
+            var requiredHours = Math.floor(requiredMinutes / 60);
+            var requiredMins = requiredMinutes % 60;
+            
+            $('#available-time').text(availableHours + 'h ' + availableMins + 'm (' + availableMinutes + ' min)');
+            $('#required-time').text(requiredHours + 'h ' + requiredMins + 'm (' + requiredMinutes + ' min)');
+            
+            var $status = $('#time-status');
+            var $suggestions = $('#smart-suggestions');
+            
+            if (requiredMinutes > availableMinutes) {
+                $status.html('<span class="status-error">❌ Insufficient Time</span>');
+                $calculator.addClass('error');
+                
+                // Generate smart suggestions
+                var suggestions = KSM_PS_Admin.generateSmartSuggestions(availableMinutes, requiredMinutes, postsPerDay, minInterval);
+                $suggestions.html('<h5>💡 Smart Suggestions:</h5>' + suggestions);
+            } else {
+                var extraTime = availableMinutes - requiredMinutes;
+                $status.html('<span class="status-success">✅ Perfect! ' + Math.floor(extraTime / 60) + 'h ' + (extraTime % 60) + 'm extra</span>');
+                $calculator.removeClass('error');
+                $suggestions.empty();
+            }
+        },
+        
+        /**
+         * Generate smart suggestions for time conflicts
+         */
+        generateSmartSuggestions: function(availableMinutes, requiredMinutes, postsPerDay, minInterval) {
+            var suggestions = '<div class="suggestion-options">';
+            
+            // Option 1: Reduce posts
+            var maxPosts = Math.max(1, Math.floor(availableMinutes / minInterval) + 1);
+            suggestions += '<div class="suggestion-option">' +
+                '<button type="button" class="suggestion-btn" data-action="reduce-posts" data-value="' + maxPosts + '">' +
+                '📉 Reduce to ' + maxPosts + ' posts/day</button></div>';
+            
+            // Option 2: Extend time
+            var extraMinutesNeeded = requiredMinutes - availableMinutes;
+            var newEndTime = KSM_PS_Admin.addMinutesToTime($('#ksm_ps_end_time').val(), extraMinutesNeeded);
+            suggestions += '<div class="suggestion-option">' +
+                '<button type="button" class="suggestion-btn" data-action="extend-time" data-value="' + newEndTime + '">' +
+                '⏰ Extend end time to ' + newEndTime + '</button></div>';
+            
+            // Option 3: Reduce interval
+            var suggestedInterval = Math.max(5, Math.floor(availableMinutes / (postsPerDay - 1)));
+            suggestions += '<div class="suggestion-option">' +
+                '<button type="button" class="suggestion-btn" data-action="reduce-interval" data-value="' + suggestedInterval + '">' +
+                '⚡ Reduce interval to ' + suggestedInterval + ' minutes</button></div>';
+            
+            suggestions += '</div>';
+            return suggestions;
+        },
+        
+        /**
+         * Add minutes to a time string
+         */
+        addMinutesToTime: function(timeStr, minutesToAdd) {
+            var totalMinutes = KSM_PS_Admin.time12ToMinutes(timeStr) + minutesToAdd;
+            return KSM_PS_Admin.minutesToTime12(totalMinutes);
+        },
+        
+        /**
+         * Convert minutes to 12-hour time format
+         */
+        minutesToTime12: function(minutes) {
+            var hours = Math.floor(minutes / 60);
+            var mins = minutes % 60;
+            var period = hours >= 12 ? 'PM' : 'AM';
+            hours = hours % 12;
+            if (hours === 0) hours = 12;
+            return hours + ':' + (mins < 10 ? '0' : '') + mins + ' ' + period;
+        },
+        
+        /**
+         * Apply smart suggestion
+         */
+        applySuggestion: function(e) {
+            e.preventDefault();
+            var $btn = $(this);
+            var action = $btn.data('action');
+            var value = $btn.data('value');
+            
+            switch(action) {
+                case 'reduce-posts':
+                    $('#ksm_ps_posts_per_day').val(value).trigger('change');
+                    break;
+                case 'extend-time':
+                    $('#ksm_ps_end_time').val(value).trigger('change');
+                    break;
+                case 'reduce-interval':
+                    $('#ksm_ps_min_interval').val(value).trigger('change');
+                    break;
+            }
+            
+            // Show feedback
+            $btn.addClass('applied').text('✅ Applied!');
+            setTimeout(function() {
+                $btn.removeClass('applied');
+            }, 2000);
         },
         
         /**

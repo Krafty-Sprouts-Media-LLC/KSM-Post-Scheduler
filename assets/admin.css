@@ -269,6 +269,143 @@
     100% { transform: rotate(360deg); }
 }
 
+/* Time Calculator */
+.ksm-time-calculator {
+    margin: 20px 0;
+    padding: 20px;
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    border: 2px solid #dee2e6;
+    border-radius: 12px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    transition: all 0.3s ease;
+}
+
+.ksm-time-calculator.error {
+    background: linear-gradient(135deg, #fff5f5 0%, #fed7d7 100%);
+    border-color: #fc8181;
+}
+
+.ksm-time-calculator h4 {
+    margin: 0 0 15px 0;
+    color: #2d3748;
+    font-size: 18px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.time-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 15px;
+    margin-bottom: 15px;
+}
+
+.stat-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 16px;
+    background: rgba(255, 255, 255, 0.8);
+    border-radius: 8px;
+    border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.stat-label {
+    font-weight: 600;
+    color: #4a5568;
+    font-size: 14px;
+}
+
+.stat-value {
+    font-weight: 700;
+    color: #2d3748;
+    font-size: 14px;
+}
+
+.status-success {
+    color: #38a169 !important;
+    font-weight: 700;
+}
+
+.status-error {
+    color: #e53e3e !important;
+    font-weight: 700;
+}
+
+/* Smart Suggestions */
+.smart-suggestions {
+    margin-top: 15px;
+}
+
+.smart-suggestions h5 {
+    margin: 0 0 12px 0;
+    color: #2d3748;
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.suggestion-options {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.suggestion-option {
+    display: flex;
+    align-items: center;
+}
+
+.suggestion-btn {
+    flex: 1;
+    padding: 12px 16px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-align: left;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.suggestion-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 12px rgba(102, 126, 234, 0.3);
+    background: linear-gradient(135deg, #5a67d8 0%, #6b46c1 100%);
+}
+
+.suggestion-btn:active {
+    transform: translateY(0);
+}
+
+.suggestion-btn.applied {
+    background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
+    transform: scale(1.02);
+}
+
+/* Enhanced Validation Errors */
+.ksm-ps-validation-error {
+    background: #fff5f5;
+    border: 1px solid #fed7d7;
+    border-radius: 8px;
+    padding: 16px;
+    margin: 15px 0;
+    color: #c53030;
+    font-size: 14px;
+    line-height: 1.5;
+    box-shadow: 0 2px 4px rgba(197, 48, 48, 0.1);
+}
+
+.ksm-ps-validation-error strong {
+    color: #9b2c2c;
+}
+
 /* Responsive Design */
 @media (max-width: 1200px) {
     .ksm-ps-admin-container {
@@ -295,6 +432,23 @@
         flex-direction: column;
         align-items: flex-start;
         gap: 5px;
+    }
+    
+    .ksm-ps-status-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .time-stats {
+        grid-template-columns: 1fr;
+    }
+    
+    .suggestion-options {
+        gap: 8px;
+    }
+    
+    .suggestion-btn {
+        padding: 10px 14px;
+        font-size: 13px;
     }
 }
 
