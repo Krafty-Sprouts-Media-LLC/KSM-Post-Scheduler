@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.0] - 01/10/2025
+### MAJOR SCHEDULING LOGIC OVERHAUL
+- **FIXED**: Critical issue where newly added drafts were being published immediately when manual button was clicked
+- **FIXED**: Scheduling logic now properly spreads posts across multiple days instead of scheduling everything for one day
+- **FIXED**: Maximum posts per day limit now properly enforced (respects the configured limit setting)
+- **IMPROVED**: Smart "today vs tomorrow" logic - posts can be scheduled for today only if there's sufficient time remaining within scheduling hours
+- **ENHANCED**: Better time calculation using WordPress timezone functions with proper buffer handling
+- **IMPROVED**: More accurate post distribution across active days with proper day offset calculations
+- **FIXED**: Posts are now correctly limited per batch (posts_per_day * 7) to prevent overwhelming the system
+- **ENHANCED**: Comprehensive debug logging for better troubleshooting of scheduling issues
+- **IMPROVED**: More robust error handling and validation throughout the scheduling process
+
 ## [1.3.1] - 01/10/2025
 ### FIXED
 - **FIXED**: Persistent 24-hour format values in database options
