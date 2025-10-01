@@ -319,9 +319,9 @@ class KSM_PS_Main {
         // Enqueue SweetAlert2 from CDN
         wp_enqueue_script(
             'sweetalert2',
-            'https://cdn.jsdelivr.net/npm/sweetalert2@11.14.5/dist/sweetalert2.all.min.js',
+            'https://cdn.jsdelivr.net/npm/sweetalert2@11.23.0/dist/sweetalert2.all.min.js',
             array(),
-            '11.14.5',
+            '11.23.0',
             true
         );
         
@@ -807,18 +807,6 @@ class KSM_PS_Main {
         }
         
         return $times;
-    }
-    
-    /**
-     * Convert time string to minutes
-     * 
-     * @param string $time Time in HH:MM format
-     * @return int Minutes since midnight
-     * @since 1.0.0
-     */
-    private function time_to_minutes($time) {
-        list($hours, $minutes) = explode(':', $time);
-        return ($hours * 60) + $minutes;
     }
     
     /**
