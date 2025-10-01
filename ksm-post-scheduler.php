@@ -3,7 +3,7 @@
  * Plugin Name: KSM Post Scheduler
  * Plugin URI: https://kraftysprouts.com
  * Description: Automatically schedules posts from a specific status to publish at random times
- * Version: 1.1.7
+ * Version: 1.1.8
  * Author: Krafty Sprouts Media, LLC
  * Author URI: https://kraftysprouts.com
  * License: GPL v2 or later
@@ -38,7 +38,7 @@ if (!defined('ABSPATH')) {
 }
 
 // Define plugin constants
-define('KSM_PS_VERSION', '1.1.7');
+define('KSM_PS_VERSION', '1.1.8');
 define('KSM_PS_PLUGIN_FILE', __FILE__);
 define('KSM_PS_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('KSM_PS_PLUGIN_URL', plugin_dir_url(__FILE__));
@@ -661,6 +661,7 @@ class KSM_PS_Main {
         $start_time = $options['start_time'] ?? '09:00';
         $end_time = $options['end_time'] ?? '18:00';
         $min_interval = $options['min_interval'] ?? 30;
+        $days_active = $options['days_active'] ?? array('monday', 'tuesday', 'wednesday', 'thursday', 'friday');
         
         // DEBUG: Log current settings and time
         $current_wp_time = current_time('Y-m-d H:i:s');
@@ -675,52 +676,85 @@ class KSM_PS_Main {
         error_log("KSM DEBUG - Total Posts to Schedule: " . count($posts));
         
         $scheduled_count = 0;
-        $current_day = 0;
+        $current_day_offset = 0;
         $posts_scheduled_today = 0;
+        
+        // Pre-generate all times for each day to ensure proper distribution
+        $daily_schedules = array();
         
         foreach ($posts as $index => $post) {
             // Check if we need to move to the next day
             if ($posts_scheduled_today >= $posts_per_day) {
-                $current_day++;
+                $current_day_offset++;
                 $posts_scheduled_today = 0;
-                error_log("KSM DEBUG - Moving to day $current_day (posts scheduled today reached limit of $posts_per_day)");
+                error_log("KSM DEBUG - Moving to day offset $current_day_offset (posts scheduled today reached limit of $posts_per_day)");
             }
             
-            // Generate random times for this day
-            $times = $this->generate_random_times(
-                1, // Generate one time
-                $start_time,
-                $end_time,
-                $min_interval
-            );
-            
-            if (empty($times)) {
-                error_log("KSM DEBUG - Failed to generate time for post {$post->ID}");
-                continue;
-            }
-            
-            $scheduled_time_str = $times[0];
-            
-            // Calculate the target date (today + current_day)
-            $target_timestamp = current_time('timestamp') + ($current_day * 24 * 60 * 60);
+            // Find the next valid scheduling day
+            $target_timestamp = $this->get_next_valid_day($current_day_offset, $days_active);
             $target_date = date('Y-m-d', $target_timestamp);
+            
+            // Generate or reuse times for this specific day
+            if (!isset($daily_schedules[$target_date])) {
+                $daily_schedules[$target_date] = $this->generate_random_times(
+                    $posts_per_day,
+                    $start_time,
+                    $end_time,
+                    $min_interval
+                );
+                error_log("KSM DEBUG - Generated " . count($daily_schedules[$target_date]) . " times for $target_date");
+            }
+            
+            // Get the next available time for this day
+            $time_index = $posts_scheduled_today;
+            if (!isset($daily_schedules[$target_date][$time_index])) {
+                error_log("KSM DEBUG - No more times available for $target_date, moving to next day");
+                $current_day_offset++;
+                $posts_scheduled_today = 0;
+                $target_timestamp = $this->get_next_valid_day($current_day_offset, $days_active);
+                $target_date = date('Y-m-d', $target_timestamp);
+                
+                if (!isset($daily_schedules[$target_date])) {
+                    $daily_schedules[$target_date] = $this->generate_random_times(
+                        $posts_per_day,
+                        $start_time,
+                        $end_time,
+                        $min_interval
+                    );
+                }
+                $time_index = 0;
+            }
+            
+            $scheduled_time_str = $daily_schedules[$target_date][$time_index];
             
             // Create full scheduled datetime
             $scheduled_time = $target_date . ' ' . $scheduled_time_str . ':00';
             $scheduled_timestamp = strtotime($scheduled_time);
             
-            // If this time has already passed today (day 0), move to tomorrow
-            if ($current_day === 0 && $scheduled_timestamp <= $current_timestamp) {
-                $current_day = 1;
+            // Critical safety check: ensure we're scheduling in the future
+            if ($scheduled_timestamp <= $current_timestamp) {
+                error_log("KSM DEBUG - CRITICAL: Calculated time $scheduled_time is in the past! Moving to next day.");
+                $current_day_offset++;
                 $posts_scheduled_today = 0;
-                $target_timestamp = current_time('timestamp') + (24 * 60 * 60);
+                $target_timestamp = $this->get_next_valid_day($current_day_offset, $days_active);
                 $target_date = date('Y-m-d', $target_timestamp);
+                
+                if (!isset($daily_schedules[$target_date])) {
+                    $daily_schedules[$target_date] = $this->generate_random_times(
+                        $posts_per_day,
+                        $start_time,
+                        $end_time,
+                        $min_interval
+                    );
+                }
+                
+                $scheduled_time_str = $daily_schedules[$target_date][0];
                 $scheduled_time = $target_date . ' ' . $scheduled_time_str . ':00';
-                $scheduled_timestamp = strtotime($scheduled_time); // FIXED: Recalculate timestamp for tomorrow
-                error_log("KSM DEBUG - Time has passed today, moving to tomorrow for post {$post->ID}");
+                $scheduled_timestamp = strtotime($scheduled_time);
+                $time_index = 0;
             }
             
-            error_log("KSM DEBUG - Post {$post->ID}: Scheduling for day $current_day ($target_date) at $scheduled_time_str");
+            error_log("KSM DEBUG - Post {$post->ID}: Scheduling for $target_date at $scheduled_time_str (timestamp: $scheduled_timestamp)");
             
             // Convert to GMT for WordPress
             $scheduled_time_gmt = get_gmt_from_date($scheduled_time);
@@ -734,9 +768,8 @@ class KSM_PS_Main {
             );
             
             // Final safety check: ensure we're not setting a past date
-            $final_timestamp = strtotime($scheduled_time);
-            if ($final_timestamp <= current_time('timestamp')) {
-                error_log("KSM DEBUG - CRITICAL: Attempting to schedule post {$post->ID} in the past! Skipping.");
+            if ($scheduled_timestamp <= $current_timestamp) {
+                error_log("KSM DEBUG - CRITICAL: Final check failed - attempting to schedule post {$post->ID} in the past! Skipping.");
                 continue;
             }
             
@@ -765,8 +798,43 @@ class KSM_PS_Main {
         
         return array(
             'success' => true,
-            'message' => sprintf('Successfully scheduled %d posts.', $scheduled_count)
+            'message' => sprintf('Successfully scheduled %d posts across %d days.', $scheduled_count, count($daily_schedules))
         );
+    }
+    
+    /**
+     * Get the next valid scheduling day based on active days
+     * 
+     * @param int $day_offset Number of days from today
+     * @param array $days_active Array of active day names
+     * @return int Timestamp for the target day
+     * @since 1.1.8
+     */
+    private function get_next_valid_day($day_offset, $days_active) {
+        $current_timestamp = current_time('timestamp');
+        $target_timestamp = $current_timestamp + ($day_offset * 24 * 60 * 60);
+        
+        // If no active days specified, use the calculated day
+        if (empty($days_active)) {
+            return $target_timestamp;
+        }
+        
+        // Find the next valid day that matches active days
+        $attempts = 0;
+        while ($attempts < 14) { // Prevent infinite loop, check up to 2 weeks
+            $day_name = strtolower(date('l', $target_timestamp));
+            
+            if (in_array($day_name, $days_active)) {
+                return $target_timestamp;
+            }
+            
+            // Move to next day
+            $target_timestamp += 24 * 60 * 60;
+            $attempts++;
+        }
+        
+        // Fallback: return the original calculated day
+        return $current_timestamp + ($day_offset * 24 * 60 * 60);
     }
     
     /**

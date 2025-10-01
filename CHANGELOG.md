@@ -5,7 +5,28 @@ All notable changes to the KSM Post Scheduler plugin will be documented in this 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.1.7] - 01/10/2025
+## [Unreleased]
+
+## [1.1.8] - 01/10/2025
+
+### Fixed
+- **CRITICAL**: Fixed issue where recent drafts were being published immediately instead of scheduled for future dates
+- **CRITICAL**: Fixed scheduling logic to properly distribute posts across different future dates instead of using the same date
+- Improved timestamp calculation to prevent scheduling posts in the past
+- Enhanced date distribution algorithm to respect active days configuration
+- Added comprehensive safety checks to prevent past-date scheduling
+- Fixed timezone handling in scheduling calculations
+
+### Added
+- New `get_next_valid_day()` method to properly calculate valid scheduling days
+- Enhanced debug logging for better troubleshooting
+- Pre-generation of daily schedules for improved distribution
+- Better error handling for edge cases in scheduling
+
+### Changed
+- Refactored `schedule_posts()` method for more reliable date distribution
+- Improved scheduling algorithm to handle day transitions more accurately
+- Enhanced validation to ensure posts are always scheduled in the future[1.1.7] - 01/10/2025
 
 ### Fixed
 - **Critical Bug Fix**: Resolved fatal error "Cannot redeclare KSM_PS_Main::time_to_minutes()"
