@@ -103,20 +103,15 @@ if (!defined('ABSPATH')) {
                             </th>
                             <td>
                                 <?php
-                                $start_time_24 = $options['start_time'] ?? '09:00';
-                                $start_time_12 = $this->convert_24_to_12($start_time_24);
+                                $start_time_12 = $options['start_time'] ?? '9:00 AM';
                                 ?>
                                 <input type="text" 
                                        id="ksm_ps_start_time" 
-                                       name="<?php echo esc_attr($this->option_name); ?>[start_time_display]" 
+                                       name="<?php echo esc_attr($this->option_name); ?>[start_time]" 
                                        value="<?php echo esc_attr($start_time_12); ?>"
                                        placeholder="9:00 AM"
                                        pattern="^(1[0-2]|[1-9]):[0-5][0-9]\s?(AM|PM|am|pm)$"
                                        title="Enter time in 12-hour format (e.g., 9:00 AM)">
-                                <input type="hidden" 
-                                       name="<?php echo esc_attr($this->option_name); ?>[start_time]" 
-                                       value="<?php echo esc_attr($start_time_24); ?>"
-                                       id="ksm_ps_start_time_24">
                                 <p class="description"><?php _e('Earliest time to schedule posts (12-hour format, e.g., 9:00 AM).', 'ksm-post-scheduler'); ?></p>
                             </td>
                         </tr>
@@ -128,20 +123,15 @@ if (!defined('ABSPATH')) {
                             </th>
                             <td>
                                 <?php
-                                $end_time_24 = $options['end_time'] ?? '18:00';
-                                $end_time_12 = $this->convert_24_to_12($end_time_24);
+                                $end_time_12 = $options['end_time'] ?? '6:00 PM';
                                 ?>
                                 <input type="text" 
                                        id="ksm_ps_end_time" 
-                                       name="<?php echo esc_attr($this->option_name); ?>[end_time_display]" 
+                                       name="<?php echo esc_attr($this->option_name); ?>[end_time]" 
                                        value="<?php echo esc_attr($end_time_12); ?>"
                                        placeholder="6:00 PM"
                                        pattern="^(1[0-2]|[1-9]):[0-5][0-9]\s?(AM|PM|am|pm)$"
                                        title="Enter time in 12-hour format (e.g., 6:00 PM)">
-                                <input type="hidden" 
-                                       name="<?php echo esc_attr($this->option_name); ?>[end_time]" 
-                                       value="<?php echo esc_attr($end_time_24); ?>"
-                                       id="ksm_ps_end_time_24">
                                 <p class="description"><?php _e('Latest time to schedule posts (12-hour format, e.g., 6:00 PM).', 'ksm-post-scheduler'); ?></p>
                             </td>
                         </tr>

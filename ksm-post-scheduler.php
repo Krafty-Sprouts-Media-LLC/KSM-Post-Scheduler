@@ -3,7 +3,7 @@
  * Plugin Name: KSM Post Scheduler
  * Plugin URI: https://kraftysprouts.com
  * Description: Automatically schedules posts from a specific status to publish at random times
- * Version: 1.1.8
+ * Version: 1.3.0
  * Author: Krafty Sprouts Media, LLC
  * Author URI: https://kraftysprouts.com
  * License: GPL v2 or later
@@ -16,7 +16,7 @@
  * Network: false
  * 
  * @package KSM_Post_Scheduler
- * @version 1.1.6
+ * @version 1.3.0
  * @author KraftySpoutsMedia, LLC
  * @copyright 2025 KraftySpouts
  * @license GPL-2.0-or-later
@@ -38,7 +38,7 @@ if (!defined('ABSPATH')) {
 }
 
 // Define plugin constants
-define('KSM_PS_VERSION', '1.1.8');
+define('KSM_PS_VERSION', '1.2.0');
 define('KSM_PS_PLUGIN_FILE', __FILE__);
 define('KSM_PS_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('KSM_PS_PLUGIN_URL', plugin_dir_url(__FILE__));
@@ -385,26 +385,30 @@ class KSM_PS_Main {
         }
         $sanitized['posts_per_day'] = $posts_per_day;
         
-        // Handle time fields - use 24-hour format for storage
-        $sanitized['start_time'] = sanitize_text_field($input['start_time'] ?? '09:00');
-        $sanitized['end_time'] = sanitize_text_field($input['end_time'] ?? '18:00');
+        // Handle time fields - use 12-hour format for storage and display
+        $sanitized['start_time'] = sanitize_text_field($input['start_time'] ?? '9:00 AM');
+        $sanitized['end_time'] = sanitize_text_field($input['end_time'] ?? '6:00 PM');
         
-        // If 12-hour display format was provided, convert from display format
-        if (isset($input['start_time_display']) && !empty($input['start_time_display'])) {
-            $converted_start = $this->convert_12_to_24($input['start_time_display']);
-            if ($converted_start) {
-                $sanitized['start_time'] = $converted_start;
-            } else {
+        // Validate 12-hour time format
+        if (!empty($sanitized['start_time'])) {
+            $time_test = DateTime::createFromFormat('g:i A', $sanitized['start_time']);
+            if (!$time_test) {
+                $time_test = DateTime::createFromFormat('h:i A', $sanitized['start_time']);
+            }
+            if (!$time_test) {
                 $validation_errors[] = __('Invalid start time format. Please use 12-hour format (e.g., 9:00 AM).', 'ksm-post-scheduler');
+                $sanitized['start_time'] = '9:00 AM';
             }
         }
         
-        if (isset($input['end_time_display']) && !empty($input['end_time_display'])) {
-            $converted_end = $this->convert_12_to_24($input['end_time_display']);
-            if ($converted_end) {
-                $sanitized['end_time'] = $converted_end;
-            } else {
+        if (!empty($sanitized['end_time'])) {
+            $time_test = DateTime::createFromFormat('g:i A', $sanitized['end_time']);
+            if (!$time_test) {
+                $time_test = DateTime::createFromFormat('h:i A', $sanitized['end_time']);
+            }
+            if (!$time_test) {
                 $validation_errors[] = __('Invalid end time format. Please use 12-hour format (e.g., 6:00 PM).', 'ksm-post-scheduler');
+                $sanitized['end_time'] = '6:00 PM';
             }
         }
         
@@ -469,15 +473,21 @@ class KSM_PS_Main {
     }
     
     /**
-     * Convert time string to minutes
+     * Convert 12-hour time string to minutes since midnight
      * 
-     * @param string $time_string Time in HH:MM format
+     * @param string $time_string Time in 12-hour format (e.g., "9:00 AM")
      * @return int Minutes since midnight
      * @since 1.1.5
      */
     private function time_to_minutes($time_string) {
-        $parts = explode(':', $time_string);
-        return (int)$parts[0] * 60 + (int)$parts[1];
+        $time = DateTime::createFromFormat('g:i A', $time_string);
+        if (!$time) {
+            $time = DateTime::createFromFormat('h:i A', $time_string);
+        }
+        if ($time) {
+            return (int)$time->format('H') * 60 + (int)$time->format('i');
+        }
+        return 0; // Default fallback
     }
     
     /**
@@ -666,10 +676,10 @@ class KSM_PS_Main {
         // DEBUG: Log current settings and time
         $current_wp_time = current_time('Y-m-d H:i:s');
         $current_server_time = date('Y-m-d H:i:s');
-        $current_timestamp = current_time('timestamp');
+        $current_wp_timestamp = current_time('timestamp');
         error_log("KSM DEBUG - Current WP Time: $current_wp_time");
         error_log("KSM DEBUG - Current Server Time: $current_server_time");
-        error_log("KSM DEBUG - Current Timestamp: $current_timestamp");
+        error_log("KSM DEBUG - Current WP Timestamp: $current_wp_timestamp");
         error_log("KSM DEBUG - Start Time Setting: $start_time");
         error_log("KSM DEBUG - End Time Setting: $end_time");
         error_log("KSM DEBUG - Posts Per Day: $posts_per_day");
@@ -727,13 +737,28 @@ class KSM_PS_Main {
             
             $scheduled_time_str = $daily_schedules[$target_date][$time_index];
             
-            // Create full scheduled datetime
-            $scheduled_time = $target_date . ' ' . $scheduled_time_str . ':00';
-            $scheduled_timestamp = strtotime($scheduled_time);
+            // Create full scheduled datetime using WordPress functions
+            // Work directly with 12-hour format using WordPress timezone functions
+            $scheduled_time_local = $target_date . ' ' . $scheduled_time_str;
             
-            // Critical safety check: ensure we're scheduling in the future
-            if ($scheduled_timestamp <= $current_timestamp) {
-                error_log("KSM DEBUG - CRITICAL: Calculated time $scheduled_time is in the past! Moving to next day.");
+            // Use WordPress's built-in timezone conversion
+            $scheduled_timestamp = strtotime($scheduled_time_local . ' ' . wp_timezone_string());
+            if ($scheduled_timestamp === false) {
+                error_log("KSM DEBUG - ERROR: Failed to parse time: $scheduled_time_local");
+                continue;
+            }
+            
+            // CRITICAL: Use WordPress current time for comparison, not server time
+            $current_wp_timestamp = current_time('timestamp');
+            
+            // Critical safety check: ensure we're scheduling in the future with buffer
+            $buffer_minutes = 10; // 10-minute buffer to ensure future scheduling
+            $min_future_timestamp = $current_wp_timestamp + ($buffer_minutes * 60);
+            
+            error_log("KSM DEBUG - Time comparison: scheduled=$scheduled_timestamp, current_wp=$current_wp_timestamp, min_required=$min_future_timestamp");
+            
+            if ($scheduled_timestamp <= $min_future_timestamp) {
+                error_log("KSM DEBUG - CRITICAL: Calculated time $scheduled_time (timestamp: $scheduled_timestamp) is too close to current WP time ($current_wp_timestamp)! Moving to next day.");
                 $current_day_offset++;
                 $posts_scheduled_today = 0;
                 $target_timestamp = $this->get_next_valid_day($current_day_offset, $days_active);
@@ -749,27 +774,35 @@ class KSM_PS_Main {
                 }
                 
                 $scheduled_time_str = $daily_schedules[$target_date][0];
-                $scheduled_time = $target_date . ' ' . $scheduled_time_str . ':00';
-                $scheduled_timestamp = strtotime($scheduled_time);
+                
+                // Recalculate with new date using WordPress functions
+                $scheduled_time_local = $target_date . ' ' . $scheduled_time_str;
+                $scheduled_timestamp = strtotime($scheduled_time_local . ' ' . wp_timezone_string());
+                if ($scheduled_timestamp === false) {
+                    error_log("KSM DEBUG - ERROR: Failed to parse rescheduled time: $scheduled_time_local");
+                    continue;
+                }
                 $time_index = 0;
             }
             
+            // Use WordPress functions to get properly formatted dates
+            $scheduled_time_mysql = date('Y-m-d H:i:s', $scheduled_timestamp);
+            $scheduled_time_gmt = get_gmt_from_date($scheduled_time_mysql);
+            
             error_log("KSM DEBUG - Post {$post->ID}: Scheduling for $target_date at $scheduled_time_str (timestamp: $scheduled_timestamp)");
-            
-            // Convert to GMT for WordPress
-            $scheduled_time_gmt = get_gmt_from_date($scheduled_time);
-            
-            // Update post with proper scheduling
+            error_log("KSM DEBUG - WordPress timezone: " . wp_timezone_string());
+            error_log("KSM DEBUG - Local time: $scheduled_time_local, GMT time: $scheduled_time_gmt");
+            // Update post with proper scheduling using WordPress format
             $update_data = array(
                 'ID' => $post->ID,
                 'post_status' => 'future',
-                'post_date' => $scheduled_time,
+                'post_date' => $scheduled_time_mysql,
                 'post_date_gmt' => $scheduled_time_gmt
             );
             
-            // Final safety check: ensure we're not setting a past date
-            if ($scheduled_timestamp <= $current_timestamp) {
-                error_log("KSM DEBUG - CRITICAL: Final check failed - attempting to schedule post {$post->ID} in the past! Skipping.");
+            // Final safety check: ensure we're not setting a past date (with buffer)
+            if ($scheduled_timestamp <= $min_future_timestamp) {
+                error_log("KSM DEBUG - CRITICAL: Final check failed - attempting to schedule post {$post->ID} too close to current WP time! Timestamp: $scheduled_timestamp, Required: $min_future_timestamp. Skipping.");
                 continue;
             }
             
@@ -811,8 +844,9 @@ class KSM_PS_Main {
      * @since 1.1.8
      */
     private function get_next_valid_day($day_offset, $days_active) {
-        $current_timestamp = current_time('timestamp');
-        $target_timestamp = $current_timestamp + ($day_offset * 24 * 60 * 60);
+        // Use WordPress current time consistently
+        $current_wp_timestamp = current_time('timestamp');
+        $target_timestamp = $current_wp_timestamp + ($day_offset * 24 * 60 * 60);
         
         // If no active days specified, use the calculated day
         if (empty($days_active)) {
@@ -822,7 +856,8 @@ class KSM_PS_Main {
         // Find the next valid day that matches active days
         $attempts = 0;
         while ($attempts < 14) { // Prevent infinite loop, check up to 2 weeks
-            $day_name = strtolower(date('l', $target_timestamp));
+            // Use WordPress timezone for day calculation
+            $day_name = strtolower(wp_date('l', $target_timestamp));
             
             if (in_array($day_name, $days_active)) {
                 return $target_timestamp;
@@ -834,7 +869,7 @@ class KSM_PS_Main {
         }
         
         // Fallback: return the original calculated day
-        return $current_timestamp + ($day_offset * 24 * 60 * 60);
+        return $current_wp_timestamp + ($day_offset * 24 * 60 * 60);
     }
     
     /**
@@ -879,16 +914,21 @@ class KSM_PS_Main {
     }
     
     /**
-     * Convert minutes to time string
+     * Convert minutes since midnight to 12-hour time string
      * 
      * @param int $minutes Minutes since midnight
-     * @return string Time in HH:MM format
+     * @return string Time in 12-hour format (e.g., "9:00 AM")
      * @since 1.0.0
      */
     private function minutes_to_time($minutes) {
         $hours = floor($minutes / 60);
         $mins = $minutes % 60;
-        return sprintf('%02d:%02d', $hours, $mins);
+        
+        // Convert to 12-hour format
+        $period = ($hours >= 12) ? 'PM' : 'AM';
+        $display_hours = ($hours == 0) ? 12 : (($hours > 12) ? $hours - 12 : $hours);
+        
+        return sprintf('%d:%02d %s', $display_hours, $mins, $period);
     }
     
     /**
@@ -909,33 +949,7 @@ class KSM_PS_Main {
         return false;
     }
     
-    /**
-     * Convert 24-hour time to 12-hour format
-     * 
-     * @param string $time_24 Time in HH:MM format (24-hour)
-     * @return string Time in 12-hour format (h:MM AM/PM)
-     * @since 1.1.2
-     */
-    private function convert_24_to_12($time_24) {
-        $time = DateTime::createFromFormat('H:i', $time_24);
-        return $time ? $time->format('g:i A') : $time_24;
-    }
-    
-    /**
-     * Convert 12-hour time to 24-hour format
-     * 
-     * @param string $time_12 Time in 12-hour format (h:MM AM/PM)
-     * @return string Time in HH:MM format (24-hour)
-     * @since 1.1.2
-     */
-    private function convert_12_to_24($time_12) {
-        $time = DateTime::createFromFormat('g:i A', $time_12);
-        if (!$time) {
-            // Try alternative format
-            $time = DateTime::createFromFormat('h:i A', $time_12);
-        }
-        return $time ? $time->format('H:i') : $time_12;
-    }
+
     
     /**
      * AJAX handler for run now button

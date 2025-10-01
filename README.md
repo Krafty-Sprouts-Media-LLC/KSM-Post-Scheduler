@@ -35,8 +35,8 @@ Navigate to **Settings > Post Scheduler** in your WordPress admin to configure:
 - **Posts Per Day**: Maximum number of posts to schedule per day (1-50)
 
 #### Timing Settings
-- **Start Time**: Earliest time to schedule posts (24-hour format)
-- **End Time**: Latest time to schedule posts (24-hour format)
+- **Start Time**: Earliest time to schedule posts (12-hour format, e.g., 9:00 AM)
+- **End Time**: Latest time to schedule posts (12-hour format, e.g., 6:00 PM)
 - **Minimum Interval**: Minimum time between posts in minutes (5-1440)
 
 #### Schedule Settings

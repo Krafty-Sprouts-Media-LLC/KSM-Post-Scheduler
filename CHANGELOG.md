@@ -7,6 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.3.0] - 01/10/2025
+### MAJOR UPDATE: 12-HOUR FORMAT IMPLEMENTATION
+- **CHANGED**: Admin interface now uses 12-hour format (AM/PM) for start and end times
+- **REMOVED**: All 12-hour to 24-hour conversion logic throughout the plugin
+- **IMPROVED**: Direct 12-hour format handling using WordPress's built-in timezone functions
+- **ENHANCED**: JavaScript validation updated to work with 12-hour format input
+- **FIXED**: Scheduling logic now uses WordPress's `strtotime()` and `get_gmt_from_date()` functions
+- **IMPROVED**: Better integration with WordPress's internal timezone handling
+- **UPDATED**: README documentation to reflect 12-hour format usage
+- **ENHANCED**: More reliable time parsing using WordPress core functions
+
+## [1.2.0] - 01/10/2025
+### CRITICAL TIMEZONE FIX
+- **FIXED**: Posts being published immediately instead of staying in 'future' status
+- **FIXED**: Timezone handling inconsistencies causing timestamp comparison errors
+- **FIXED**: Mixed use of server time vs WordPress time in scheduling calculations
+- **IMPROVED**: Consistent use of `current_time('timestamp')` throughout scheduling logic
+- **IMPROVED**: Proper WordPress timezone handling with `wp_timezone()` and `wp_date()`
+- **ENHANCED**: Increased safety buffer from 5 to 10 minutes for future scheduling
+- **ENHANCED**: Better debugging with timezone and timestamp tracking
+- **FIXED**: Day calculation using WordPress timezone-aware functions
+
+## [1.1.9] - 01/10/2025
+### CRITICAL FIX
+- **FIXED**: Drafts being published immediately due to timezone calculation errors
+- **FIXED**: Replaced `strtotime()` with WordPress timezone-aware `DateTime` objects
+- **IMPROVED**: Added 5-minute buffer to ensure all scheduled posts are in the future
+- **ENHANCED**: Better error handling for DateTime creation failures
+- **IMPROVED**: More detailed debug logging for timestamp calculations
+
 ## [1.1.8] - 01/10/2025
 
 ### Fixed

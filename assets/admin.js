@@ -174,25 +174,33 @@
         },
         
         /**
-         * Handle time input conversion from 12-hour to 24-hour format
+         * Handle time input validation for 12-hour format
          */
         handleTimeInput: function() {
             var $input = $(this);
             var value = $input.val().trim();
             
             if (value) {
-                var time24 = KSM_PS_Admin.convertTo24Hour(value);
-                if (time24) {
-                    // Update the hidden field with 24-hour format
-                    var hiddenFieldId = $input.attr('id') + '_24';
-                    $('#' + hiddenFieldId).val(time24);
+                // Validate 12-hour format
+                var match = value.match(/^(\d{1,2}):(\d{2})\s*(AM|PM|am|pm)$/i);
+                if (match) {
+                    var hours = parseInt(match[1], 10);
+                    var minutes = parseInt(match[2], 10);
                     
-                    // Update the display field with properly formatted 12-hour time
-                    var time12 = KSM_PS_Admin.convertTo12Hour(time24);
-                    $input.val(time12);
-                    
-                    // Remove error styling
-                    $input.removeClass('error');
+                    // Validate hours and minutes
+                    if (hours >= 1 && hours <= 12 && minutes >= 0 && minutes <= 59) {
+                        // Format consistently
+                        var period = match[3].toUpperCase();
+                        var formattedTime = hours + ':' + String(minutes).padStart(2, '0') + ' ' + period;
+                        $input.val(formattedTime);
+                        
+                        // Remove error styling
+                        $input.removeClass('error');
+                    } else {
+                        // Invalid time values
+                        $input.addClass('error');
+                        KSM_PS_Admin.showValidationError(ksm_ps_ajax.strings.time_format_error);
+                    }
                 } else {
                     // Invalid format - show error
                     $input.addClass('error');
@@ -201,74 +209,14 @@
             }
         },
         
-        /**
-         * Convert 12-hour time to 24-hour format
-         */
-        convertTo24Hour: function(time12) {
-            // Clean up the input
-            time12 = time12.replace(/\s+/g, ' ').trim();
-            
-            // Match various 12-hour formats
-            var match = time12.match(/^(\d{1,2}):(\d{2})\s*(AM|PM|am|pm)$/i);
-            if (!match) {
-                return null;
-            }
-            
-            var hours = parseInt(match[1], 10);
-            var minutes = parseInt(match[2], 10);
-            var period = match[3].toUpperCase();
-            
-            // Validate hours and minutes
-            if (hours < 1 || hours > 12 || minutes < 0 || minutes > 59) {
-                return null;
-            }
-            
-            // Convert to 24-hour format
-            if (period === 'AM') {
-                if (hours === 12) {
-                    hours = 0;
-                }
-            } else { // PM
-                if (hours !== 12) {
-                    hours += 12;
-                }
-            }
-            
-            // Format as HH:MM
-            return String(hours).padStart(2, '0') + ':' + String(minutes).padStart(2, '0');
-        },
-        
-        /**
-         * Convert 24-hour time to 12-hour format
-         */
-        convertTo12Hour: function(time24) {
-            var match = time24.match(/^(\d{1,2}):(\d{2})$/);
-            if (!match) {
-                return time24;
-            }
-            
-            var hours = parseInt(match[1], 10);
-            var minutes = match[2];
-            var period = 'AM';
-            
-            if (hours === 0) {
-                hours = 12;
-            } else if (hours === 12) {
-                period = 'PM';
-            } else if (hours > 12) {
-                hours -= 12;
-                period = 'PM';
-            }
-            
-            return hours + ':' + minutes + ' ' + period;
-        },
+
         
         /**
          * Validate time inputs
          */
         validateTimeInputs: function() {
-            var startTime = $('#ksm_ps_start_time_24').val();
-            var endTime = $('#ksm_ps_end_time_24').val();
+            var startTime = $('#ksm_ps_start_time').val();
+            var endTime = $('#ksm_ps_end_time').val();
             var postsPerDay = parseInt($('#ksm_ps_posts_per_day').val()) || 5;
             var minInterval = parseInt($('#ksm_ps_min_interval').val()) || 60;
             
@@ -277,8 +225,8 @@
             KSM_PS_Admin.removeValidationError('end_time_after_start');
             
             if (startTime && endTime) {
-                var startMinutes = KSM_PS_Admin.timeStringToMinutes(startTime);
-                var endMinutes = KSM_PS_Admin.timeStringToMinutes(endTime);
+                var startMinutes = KSM_PS_Admin.time12ToMinutes(startTime);
+                var endMinutes = KSM_PS_Admin.time12ToMinutes(endTime);
                 
                 // Check if end time is after start time
                 if (endMinutes <= startMinutes) {
@@ -347,9 +295,42 @@
         },
         
         /**
-         * Convert time string to minutes
+         * Convert 12-hour time string to minutes since midnight
+         */
+        time12ToMinutes: function(time12) {
+            var match = time12.match(/^(\d{1,2}):(\d{2})\s*(AM|PM|am|pm)$/i);
+            if (!match) {
+                return 0;
+            }
+            
+            var hours = parseInt(match[1], 10);
+            var minutes = parseInt(match[2], 10);
+            var period = match[3].toUpperCase();
+            
+            // Convert to 24-hour format for calculation
+            if (period === 'AM') {
+                if (hours === 12) {
+                    hours = 0;
+                }
+            } else { // PM
+                if (hours !== 12) {
+                    hours += 12;
+                }
+            }
+            
+            return hours * 60 + minutes;
+        },
+
+        /**
+         * Convert time string to minutes (legacy function for compatibility)
          */
         timeStringToMinutes: function(timeString) {
+            // Check if it's 12-hour format
+            if (timeString.match(/AM|PM|am|pm/)) {
+                return this.time12ToMinutes(timeString);
+            }
+            
+            // Handle 24-hour format (legacy)
             var parts = timeString.split(':');
             return parseInt(parts[0]) * 60 + parseInt(parts[1]);
         },
