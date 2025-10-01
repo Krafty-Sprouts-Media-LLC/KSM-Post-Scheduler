@@ -5,6 +5,32 @@ All notable changes to the KSM Post Scheduler plugin will be documented in this 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.5] - 01/10/2025
+
+### Fixed
+- **Posts Per Day Distribution**: Fixed critical issue where all posts were being scheduled for the same day instead of being distributed across multiple days
+  - Modified `schedule_posts()` function to properly distribute posts across days based on the "Posts Per Day" setting
+  - Posts now correctly move to the next day when the daily limit is reached
+  - Added intelligent day calculation that respects the posts per day limit
+
+### Added
+- **Dynamic Schedule Re-adjustment**: Added automatic re-adjustment of existing scheduled posts when "Posts Per Day" setting changes
+  - New `readjust_scheduled_posts()` function that resets and reschedules existing future posts
+  - New `handle_posts_per_day_change()` function that detects setting changes and triggers re-adjustment
+  - Enhanced user feedback with success/error messages when re-adjustment occurs
+
+### Enhanced
+- **Improved Scheduling Logic**: Enhanced the scheduling algorithm to handle multi-day distribution
+  - Added day counter and posts-per-day tracking within the scheduling loop
+  - Better handling of time conflicts when moving between days
+  - More comprehensive debug logging for multi-day scheduling
+
+### Technical
+- Modified `schedule_posts()` to retrieve all available posts instead of limiting by posts_per_day
+- Added day tracking variables (`$current_day`, `$posts_scheduled_today`) for proper distribution
+- Enhanced `sanitize_settings()` to detect posts_per_day changes and trigger re-adjustment
+- Added WordPress action hook integration for seamless settings change handling
+
 ## [1.1.4] - 01/10/2025
 
 ### Fixed

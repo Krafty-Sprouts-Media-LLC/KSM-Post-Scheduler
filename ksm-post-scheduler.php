@@ -3,7 +3,7 @@
  * Plugin Name: KSM Post Scheduler
  * Plugin URI: https://kraftysprouts.com
  * Description: Automatically schedules posts from a specific status to publish at random times
- * Version: 1.1.4
+ * Version: 1.1.5
  * Author: Krafty Sprouts Media, LLC
  * Author URI: https://kraftysprouts.com
  * License: GPL v2 or later
@@ -16,7 +16,7 @@
  * Network: false
  * 
  * @package KSM_Post_Scheduler
- * @version 1.1.4
+ * @version 1.1.5
  * @author KraftySpoutsMedia, LLC
  * @copyright 2025 KraftySpouts
  * @license GPL-2.0-or-later
@@ -38,7 +38,7 @@ if (!defined('ABSPATH')) {
 }
 
 // Define plugin constants
-define('KSM_PS_VERSION', '1.1.4');
+define('KSM_PS_VERSION', '1.1.5');
 define('KSM_PS_PLUGIN_FILE', __FILE__);
 define('KSM_PS_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('KSM_PS_PLUGIN_URL', plugin_dir_url(__FILE__));
@@ -351,6 +351,10 @@ class KSM_PS_Main {
      * @since 1.0.0
      */
     public function sanitize_settings($input) {
+        // Get current options to compare for changes
+        $current_options = get_option($this->option_name, array());
+        $current_posts_per_day = $current_options['posts_per_day'] ?? 5;
+        
         $sanitized = array();
         
         $sanitized['enabled'] = isset($input['enabled']) ? (bool) $input['enabled'] : false;
@@ -389,7 +393,45 @@ class KSM_PS_Main {
             }
         }
         
+        // Check if posts_per_day has changed and there are scheduled posts
+        if ($current_posts_per_day !== $sanitized['posts_per_day']) {
+            error_log("KSM DEBUG - Posts per day changed from $current_posts_per_day to {$sanitized['posts_per_day']}");
+            
+            // Schedule the re-adjustment to run after the settings are saved
+            add_action('updated_option_' . $this->option_name, array($this, 'handle_posts_per_day_change'), 10, 2);
+        }
+        
         return $sanitized;
+    }
+    
+    /**
+     * Handle posts per day setting change
+     * 
+     * @param array $old_value Previous option value
+     * @param array $new_value New option value
+     * @since 1.1.5
+     */
+    public function handle_posts_per_day_change($old_value, $new_value) {
+        error_log("KSM DEBUG - Handling posts per day change - re-adjusting scheduled posts");
+        
+        // Re-adjust existing scheduled posts with new posts per day setting
+        $result = $this->readjust_scheduled_posts();
+        
+        if ($result['success']) {
+            add_settings_error(
+                $this->option_name,
+                'posts_readjusted',
+                __('Settings saved and existing scheduled posts have been re-adjusted based on the new posts per day setting.', 'ksm-post-scheduler'),
+                'updated'
+            );
+        } else {
+            add_settings_error(
+                $this->option_name,
+                'readjust_failed',
+                __('Settings saved, but failed to re-adjust existing scheduled posts: ' . $result['message'], 'ksm-post-scheduler'),
+                'error'
+            );
+        }
     }
     
     /**
@@ -480,6 +522,43 @@ class KSM_PS_Main {
     }
     
     /**
+     * Re-adjust existing scheduled posts when posts per day setting changes
+     * 
+     * @return array Result array with success status and message
+     * @since 1.1.5
+     */
+    private function readjust_scheduled_posts() {
+        $options = get_option($this->option_name, array());
+        $posts_per_day = $options['posts_per_day'] ?? 5;
+        
+        // Get all currently scheduled posts (future status)
+        $scheduled_posts = get_posts(array(
+            'post_status' => 'future',
+            'numberposts' => -1,
+            'post_type' => 'post',
+            'orderby' => 'post_date',
+            'order' => 'ASC'
+        ));
+        
+        if (empty($scheduled_posts)) {
+            return array('success' => true, 'message' => 'No scheduled posts to re-adjust.');
+        }
+        
+        error_log("KSM DEBUG - Re-adjusting " . count($scheduled_posts) . " scheduled posts with new posts_per_day: $posts_per_day");
+        
+        // Reset all scheduled posts to draft status first
+        foreach ($scheduled_posts as $post) {
+            wp_update_post(array(
+                'ID' => $post->ID,
+                'post_status' => $options['post_status'] ?? 'draft'
+            ));
+        }
+        
+        // Now reschedule them with the new posts per day setting
+        return $this->schedule_posts();
+    }
+
+    /**
      * Schedule posts function
      * 
      * @return array Result array with success status and message
@@ -487,11 +566,12 @@ class KSM_PS_Main {
      */
     private function schedule_posts() {
         $options = get_option($this->option_name, array());
+        $posts_per_day = $options['posts_per_day'] ?? 5;
         
-        // Get posts to schedule
+        // Get ALL posts to schedule (not limited by posts_per_day)
         $posts = get_posts(array(
             'post_status' => $options['post_status'] ?? 'draft',
-            'numberposts' => $options['posts_per_day'] ?? 5,
+            'numberposts' => -1, // Get all posts
             'post_type' => 'post',
             'orderby' => 'date',
             'order' => 'ASC'
@@ -504,6 +584,7 @@ class KSM_PS_Main {
         // Get time settings
         $start_time = $options['start_time'] ?? '09:00';
         $end_time = $options['end_time'] ?? '18:00';
+        $min_interval = $options['min_interval'] ?? 30;
         
         // DEBUG: Log current settings and time
         $current_wp_time = current_time('Y-m-d H:i:s');
@@ -514,89 +595,94 @@ class KSM_PS_Main {
         error_log("KSM DEBUG - Current Timestamp: $current_timestamp");
         error_log("KSM DEBUG - Start Time Setting: $start_time");
         error_log("KSM DEBUG - End Time Setting: $end_time");
-        
-        // Generate random times
-        $times = $this->generate_random_times(
-            count($posts),
-            $start_time,
-            $end_time,
-            $options['min_interval'] ?? 30
-        );
-        error_log("KSM DEBUG - Generated Times: " . implode(', ', $times));
+        error_log("KSM DEBUG - Posts Per Day: $posts_per_day");
+        error_log("KSM DEBUG - Total Posts to Schedule: " . count($posts));
         
         $scheduled_count = 0;
+        $current_day = 0;
+        $posts_scheduled_today = 0;
+        
         foreach ($posts as $index => $post) {
-            if (isset($times[$index])) {
-                // Get current time components
-                $current_time_24 = current_time('H:i');
-                $current_timestamp = current_time('timestamp');
+            // Check if we need to move to the next day
+            if ($posts_scheduled_today >= $posts_per_day) {
+                $current_day++;
+                $posts_scheduled_today = 0;
+                error_log("KSM DEBUG - Moving to day $current_day (posts scheduled today reached limit of $posts_per_day)");
+            }
+            
+            // Generate random times for this day
+            $times = $this->generate_random_times(
+                1, // Generate one time
+                $start_time,
+                $end_time,
+                $min_interval
+            );
+            
+            if (empty($times)) {
+                error_log("KSM DEBUG - Failed to generate time for post {$post->ID}");
+                continue;
+            }
+            
+            $scheduled_time_str = $times[0];
+            
+            // Calculate the target date (today + current_day)
+            $target_timestamp = current_time('timestamp') + ($current_day * 24 * 60 * 60);
+            $target_date = date('Y-m-d', $target_timestamp);
+            
+            // Create full scheduled datetime
+            $scheduled_time = $target_date . ' ' . $scheduled_time_str . ':00';
+            $scheduled_timestamp = strtotime($scheduled_time);
+            
+            // If this time has already passed today (day 0), move to tomorrow
+            if ($current_day === 0 && $scheduled_timestamp <= $current_timestamp) {
+                $current_day = 1;
+                $posts_scheduled_today = 0;
+                $target_timestamp = current_time('timestamp') + (24 * 60 * 60);
+                $target_date = date('Y-m-d', $target_timestamp);
+                $scheduled_time = $target_date . ' ' . $scheduled_time_str . ':00';
+                error_log("KSM DEBUG - Time has passed today, moving to tomorrow for post {$post->ID}");
+            }
+            
+            error_log("KSM DEBUG - Post {$post->ID}: Scheduling for day $current_day ($target_date) at $scheduled_time_str");
+            
+            // Convert to GMT for WordPress
+            $scheduled_time_gmt = get_gmt_from_date($scheduled_time);
+            
+            // Update post with proper scheduling
+            $update_data = array(
+                'ID' => $post->ID,
+                'post_status' => 'future',
+                'post_date' => $scheduled_time,
+                'post_date_gmt' => $scheduled_time_gmt
+            );
+            
+            // Final safety check: ensure we're not setting a past date
+            $final_timestamp = strtotime($scheduled_time);
+            if ($final_timestamp <= current_time('timestamp')) {
+                error_log("KSM DEBUG - CRITICAL: Attempting to schedule post {$post->ID} in the past! Skipping.");
+                continue;
+            }
+            
+            error_log("KSM DEBUG - About to update post {$post->ID} with data: " . print_r($update_data, true));
+            
+            $result = wp_update_post($update_data, true); // Enable error return
+            
+            if (!is_wp_error($result) && $result !== 0) {
+                $scheduled_count++;
+                $posts_scheduled_today++;
+                error_log("KSM DEBUG - Successfully scheduled post {$post->ID} for $scheduled_time (GMT: $scheduled_time_gmt)");
                 
-                // Create scheduled datetime for today
-                $today = current_time('Y-m-d');
-                $scheduled_time_today = $today . ' ' . $times[$index] . ':00';
-                $scheduled_timestamp_today = strtotime($scheduled_time_today);
+                // Double-check the post status after update
+                $updated_post = get_post($post->ID);
+                error_log("KSM DEBUG - Post {$post->ID} status after update: {$updated_post->post_status}, date: {$updated_post->post_date}");
                 
-                // If the scheduled time for today has already passed, schedule for tomorrow
-                if ($scheduled_timestamp_today <= $current_timestamp) {
-                    $tomorrow = date('Y-m-d', strtotime('+1 day', $current_timestamp));
-                    $scheduled_time = $tomorrow . ' ' . $times[$index] . ':00';
-                    $use_today = false;
-                } else {
-                    $scheduled_time = $scheduled_time_today;
-                    $use_today = true;
+                // If the post is not in 'future' status, something went wrong
+                if ($updated_post->post_status !== 'future') {
+                    error_log("KSM DEBUG - ERROR: Post {$post->ID} was not set to 'future' status! Current status: {$updated_post->post_status}");
                 }
-                
-                error_log("KSM DEBUG - Post {$post->ID}: Generated time {$times[$index]}, Current time $current_time_24, Use today: " . ($use_today ? 'YES' : 'NO') . ", Final time: $scheduled_time");
-                
-                // Convert to GMT for WordPress using the proper WordPress function
-                $scheduled_time_gmt = get_gmt_from_date($scheduled_time);
-                
-                // Verify the scheduled time is in the future
-                $scheduled_timestamp = strtotime($scheduled_time);
-                if ($scheduled_timestamp <= $current_timestamp) {
-                    error_log("KSM DEBUG - WARNING: Post {$post->ID} scheduled time ($scheduled_time) is not in the future! Current: $current_wp_time");
-                    // Force schedule for tomorrow if there's still an issue
-                    $tomorrow = date('Y-m-d', strtotime('+1 day', $current_timestamp));
-                    $scheduled_time = $tomorrow . ' ' . $times[$index] . ':00';
-                    $scheduled_time_gmt = get_gmt_from_date($scheduled_time);
-                    error_log("KSM DEBUG - Forced to tomorrow: $scheduled_time");
-                }
-                
-                // Update post with proper scheduling
-                $update_data = array(
-                    'ID' => $post->ID,
-                    'post_status' => 'future',
-                    'post_date' => $scheduled_time,
-                    'post_date_gmt' => $scheduled_time_gmt
-                );
-                
-                // Additional safety check: ensure we're not setting a past date
-                $final_timestamp = strtotime($scheduled_time);
-                if ($final_timestamp <= current_time('timestamp')) {
-                    error_log("KSM DEBUG - CRITICAL: Attempting to schedule post {$post->ID} in the past! Skipping.");
-                    continue;
-                }
-                
-                error_log("KSM DEBUG - About to update post {$post->ID} with data: " . print_r($update_data, true));
-                
-                $result = wp_update_post($update_data, true); // Enable error return
-                
-                if (!is_wp_error($result) && $result !== 0) {
-                    $scheduled_count++;
-                    error_log("KSM DEBUG - Successfully scheduled post {$post->ID} for $scheduled_time (GMT: $scheduled_time_gmt)");
-                    
-                    // Double-check the post status after update
-                    $updated_post = get_post($post->ID);
-                    error_log("KSM DEBUG - Post {$post->ID} status after update: {$updated_post->post_status}, date: {$updated_post->post_date}");
-                    
-                    // If the post is not in 'future' status, something went wrong
-                    if ($updated_post->post_status !== 'future') {
-                        error_log("KSM DEBUG - ERROR: Post {$post->ID} was not set to 'future' status! Current status: {$updated_post->post_status}");
-                    }
-                } else {
-                    $error_message = is_wp_error($result) ? $result->get_error_message() : 'Unknown error';
-                    error_log("KSM DEBUG - Failed to schedule post {$post->ID}: " . $error_message);
-                }
+            } else {
+                $error_message = is_wp_error($result) ? $result->get_error_message() : 'Unknown error';
+                error_log("KSM DEBUG - Failed to schedule post {$post->ID}: " . $error_message);
             }
         }
         
