@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.1] - 01/10/2025
+### CRITICAL START TIME LOGIC FIX
+- **FIXED**: Critical issue where start time was not properly considered when determining if posts can be scheduled today
+- **IMPROVED**: Scheduling logic now correctly evaluates both start time AND end time when checking feasibility for today
+- **ENHANCED**: Consistent 30-minute buffer handling between feasibility check and time generation
+- **FIXED**: Effective start time calculation now properly accounts for current time + buffer vs configured start time
+- **IMPROVED**: Better debug logging to show effective start time, latest scheduling time, and remaining time calculations
+- **VALIDATED**: Logic now correctly handles scenarios: before start time, between start/end times, and after end time
+
 ## [1.4.0] - 01/10/2025
 ### MAJOR SCHEDULING LOGIC OVERHAUL
 - **FIXED**: Critical issue where newly added drafts were being published immediately when manual button was clicked

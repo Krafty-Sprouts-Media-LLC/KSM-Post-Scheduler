@@ -3,7 +3,7 @@
  * Plugin Name: KSM Post Scheduler
  * Plugin URI: https://kraftysprouts.com
  * Description: Automatically schedules posts from a specific status to publish at random times
- * Version: 1.4.0
+ * Version: 1.4.1
  * Author: Krafty Sprouts Media, LLC
  * Author URI: https://kraftysprouts.com
  * License: GPL v2 or later
@@ -16,7 +16,7 @@
  * Network: false
  * 
  * @package KSM_Post_Scheduler
- * @version 1.4.0
+ * @version 1.4.1
  * @author KraftySpoutsMedia, LLC
  * @copyright 2025 KraftySpouts
  * @license GPL-2.0-or-later
@@ -38,7 +38,7 @@ if (!defined('ABSPATH')) {
 }
 
 // Define plugin constants
-define('KSM_PS_VERSION', '1.4.0');
+define('KSM_PS_VERSION', '1.4.1');
 define('KSM_PS_PLUGIN_FILE', __FILE__);
 define('KSM_PS_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('KSM_PS_PLUGIN_URL', plugin_dir_url(__FILE__));
@@ -710,19 +710,29 @@ class KSM_PS_Main {
             $buffer_minutes = 30; // 30-minute buffer
             $latest_scheduling_time = $end_minutes - $buffer_minutes;
             
+            // We can schedule today if:
+            // 1. Current time is before the latest scheduling time (end time - buffer)
+            // 2. We still have time for at least one post (considering start time and minimum interval)
             if ($current_time_minutes < $latest_scheduling_time) {
-                // Check how many posts we could still fit today
-                $remaining_time_today = $latest_scheduling_time - max($current_time_minutes, $start_minutes);
+                // Calculate the effective start time for today
+                $effective_start_time = max($current_time_minutes + 30, $start_minutes); // 30-minute buffer from current time (consistent with time generation)
+                
+                // Check if we have enough time between effective start and latest scheduling time
+                $remaining_time_today = $latest_scheduling_time - $effective_start_time;
                 $possible_posts_today = min($posts_per_day, floor($remaining_time_today / $min_interval) + 1);
                 
-                if ($possible_posts_today > 0) {
+                if ($possible_posts_today > 0 && $effective_start_time <= $latest_scheduling_time) {
                     $can_schedule_today = true;
-                    error_log("KSM DEBUG - Can schedule $possible_posts_today posts today (remaining time: $remaining_time_today minutes)");
+                    error_log("KSM DEBUG - Can schedule $possible_posts_today posts today");
+                    error_log("KSM DEBUG - Effective start time today: " . $this->minutes_to_time($effective_start_time));
+                    error_log("KSM DEBUG - Latest scheduling time: " . $this->minutes_to_time($latest_scheduling_time));
+                    error_log("KSM DEBUG - Remaining time: $remaining_time_today minutes");
                 } else {
-                    error_log("KSM DEBUG - Cannot schedule posts today - not enough time remaining");
+                    error_log("KSM DEBUG - Cannot schedule posts today - not enough time remaining after considering start time");
+                    error_log("KSM DEBUG - Effective start: " . $this->minutes_to_time($effective_start_time) . ", Latest: " . $this->minutes_to_time($latest_scheduling_time));
                 }
             } else {
-                error_log("KSM DEBUG - Cannot schedule posts today - past scheduling hours");
+                error_log("KSM DEBUG - Cannot schedule posts today - current time ($current_time_minutes min) is past latest scheduling time ($latest_scheduling_time min)");
             }
         } else {
             error_log("KSM DEBUG - Cannot schedule posts today - not an active day ($today_name)");
