@@ -2,6 +2,19 @@
 
 All notable changes to the KSM Post Scheduler plugin will be documented in this file.
 
+## [1.4.3] - 01/10/2025
+
+### Fixed
+- **CRITICAL**: Fixed day offset initialization bug that was causing all posts to be scheduled for the same day again
+- Corrected initialization logic where `$current_day_offset` was incorrectly set to 1 when `can_schedule_today` was false
+- Fixed double-offset calculation that was causing posts to start from 2 days ahead instead of tomorrow
+- Ensured `$current_day_offset` always starts at 0 and lets `get_next_valid_day()` handle the proper offset calculation
+
+### Improved
+- Enhanced debug logging to show proper day offset calculations
+- Verified day distribution works correctly with comprehensive testing
+- Maintained backward compatibility with existing scheduling logic
+
 ## [1.4.2] - 01/10/2025
 
 ### Fixed

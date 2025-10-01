@@ -3,7 +3,7 @@
  * Plugin Name: KSM Post Scheduler
  * Plugin URI: https://kraftysprouts.com
  * Description: Automatically schedules posts from a specific status to publish at random times
- * Version: 1.4.2
+ * Version: 1.4.3
  * Author: Krafty Sprouts Media, LLC
  * Author URI: https://kraftysprouts.com
  * License: GPL v2 or later
@@ -16,7 +16,7 @@
  * Network: false
  * 
  * @package KSM_Post_Scheduler
- * @version 1.4.2
+ * @version 1.4.3
  * @author KraftySpoutsMedia, LLC
  * @copyright 2025 KraftySpouts
  * @license GPL-2.0-or-later
@@ -38,7 +38,7 @@ if (!defined('ABSPATH')) {
 }
 
 // Define plugin constants
-define('KSM_PS_VERSION', '1.4.2');
+define('KSM_PS_VERSION', '1.4.3');
 define('KSM_PS_PLUGIN_FILE', __FILE__);
 define('KSM_PS_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('KSM_PS_PLUGIN_URL', plugin_dir_url(__FILE__));
@@ -738,10 +738,9 @@ class KSM_PS_Main {
             error_log("KSM DEBUG - Cannot schedule posts today - not an active day ($today_name)");
         }
         
-        // If we can't schedule today, start from tomorrow
+        // Log the starting point
         if (!$can_schedule_today) {
-            $current_day_offset = 1;
-            error_log("KSM DEBUG - Starting from tomorrow (day offset: $current_day_offset)");
+            error_log("KSM DEBUG - Starting from tomorrow (day offset: $current_day_offset, will be calculated by get_next_valid_day)");
         } else {
             error_log("KSM DEBUG - Starting from today (day offset: $current_day_offset)");
         }
