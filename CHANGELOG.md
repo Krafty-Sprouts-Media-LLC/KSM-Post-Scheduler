@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Critical Bug Fix**: Resolved fatal error "Cannot redeclare KSM_PS_Main::time_to_minutes()"
   - Removed duplicate function declaration that was causing plugin crashes
   - Maintained the newer, more robust implementation of the time conversion function
+- **Manual Testing Bug Fix**: Fixed issue where drafts were being published instead of scheduled during manual testing
+  - Corrected timestamp recalculation logic when posts are moved to the next day
+  - Ensured posts are properly scheduled as 'future' status instead of being immediately published
+  - Added proper timestamp recalculation after date adjustments
 
 ### Updated
 - **SweetAlert2 Library**: Updated to version 11.23.0 for latest features and security improvements

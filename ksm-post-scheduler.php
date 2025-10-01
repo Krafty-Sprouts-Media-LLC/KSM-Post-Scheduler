@@ -716,6 +716,7 @@ class KSM_PS_Main {
                 $target_timestamp = current_time('timestamp') + (24 * 60 * 60);
                 $target_date = date('Y-m-d', $target_timestamp);
                 $scheduled_time = $target_date . ' ' . $scheduled_time_str . ':00';
+                $scheduled_timestamp = strtotime($scheduled_time); // FIXED: Recalculate timestamp for tomorrow
                 error_log("KSM DEBUG - Time has passed today, moving to tomorrow for post {$post->ID}");
             }
             
