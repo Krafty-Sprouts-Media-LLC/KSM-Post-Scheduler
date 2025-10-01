@@ -5,6 +5,35 @@ All notable changes to the KSM Post Scheduler plugin will be documented in this 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.6] - 01/10/2025
+
+### Added
+- **SweetAlert2 Integration**: Replaced browser alerts with modern SweetAlert2 notifications for better user experience
+  - Added SweetAlert2 library from CDN for beautiful, customizable notifications
+  - Implemented proper error, success, and warning message displays
+  - Enhanced visual feedback for validation errors and form submissions
+
+### Enhanced
+- **Improved Validation System**: Comprehensive client-side and server-side validation
+  - Real-time validation for time inputs, posts per day, and minimum interval settings
+  - Proper form validation that prevents submission when errors are present
+  - Enhanced time window validation to ensure sufficient time for scheduled posts with minimum intervals
+  - Better error messaging with specific validation rules and constraints
+
+### Fixed
+- **Error Handling**: Replaced intrusive browser prompts with user-friendly notifications
+  - Fixed issue where users could save invalid settings despite validation errors
+  - Improved server-side validation in `sanitize_settings()` function
+  - Added proper error display using WordPress settings errors API
+  - Enhanced validation for time format conversion and range checking
+
+### Technical
+- Added comprehensive validation helper functions in admin.js
+- Implemented `addValidationError()`, `removeValidationError()`, and `showValidationError()` methods
+- Enhanced server-side validation with proper error collection and display
+- Added `time_to_minutes()` helper function for time calculations
+- Improved form submission handling with validation state tracking
+
 ## [1.1.5] - 01/10/2025
 
 ### Fixed

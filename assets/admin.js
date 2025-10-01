@@ -2,7 +2,7 @@
  * KSM Post Scheduler Admin JavaScript
  * 
  * @package KSM_Post_Scheduler
- * @version 1.0.0
+ * @version 1.1.5
  * @since 1.0.0
  */
 
@@ -13,6 +13,9 @@
      * Admin object
      */
     var KSM_PS_Admin = {
+        
+        // Validation state
+        validationErrors: [],
         
         /**
          * Initialize admin functionality
@@ -41,6 +44,9 @@
             
             // Minimum interval validation
             $('#ksm_ps_min_interval').on('change', this.validateMinInterval);
+            
+            // Form submission validation
+            $('form').on('submit', this.validateForm);
         },
         
         /**
@@ -184,10 +190,13 @@
                     // Update the display field with properly formatted 12-hour time
                     var time12 = KSM_PS_Admin.convertTo12Hour(time24);
                     $input.val(time12);
+                    
+                    // Remove error styling
+                    $input.removeClass('error');
                 } else {
                     // Invalid format - show error
                     $input.addClass('error');
-                    alert('Please enter time in 12-hour format (e.g., 9:00 AM or 6:30 PM)');
+                    KSM_PS_Admin.showValidationError(ksm_ps_ajax.strings.time_format_error);
                 }
             }
         },
@@ -258,27 +267,34 @@
          * Validate time inputs
          */
         validateTimeInputs: function() {
-            var startTime24 = $('#ksm_ps_start_time_24').val();
-            var endTime24 = $('#ksm_ps_end_time_24').val();
+            var startTime = $('#ksm_ps_start_time_24').val();
+            var endTime = $('#ksm_ps_end_time_24').val();
+            var postsPerDay = parseInt($('#ksm_ps_posts_per_day').val()) || 5;
+            var minInterval = parseInt($('#ksm_ps_min_interval').val()) || 60;
             
-            if (startTime24 && endTime24) {
-                var start = KSM_PS_Admin.timeToMinutes(startTime24);
-                var end = KSM_PS_Admin.timeToMinutes(endTime24);
+            // Remove previous time validation errors
+            KSM_PS_Admin.removeValidationError('time_window');
+            KSM_PS_Admin.removeValidationError('end_time_after_start');
+            
+            if (startTime && endTime) {
+                var startMinutes = KSM_PS_Admin.timeStringToMinutes(startTime);
+                var endMinutes = KSM_PS_Admin.timeStringToMinutes(endTime);
                 
-                if (start >= end) {
-                    alert('End time must be after start time.');
-                    $('#ksm_ps_end_time').focus();
+                // Check if end time is after start time
+                if (endMinutes <= startMinutes) {
+                    KSM_PS_Admin.addValidationError('end_time_after_start', 'End time must be after start time.');
                     return false;
                 }
                 
-                // Check if there's enough time for minimum posts
-                var postsPerDay = parseInt($('#ksm_ps_posts_per_day').val()) || 1;
-                var minInterval = parseInt($('#ksm_ps_min_interval').val()) || 30;
-                var availableMinutes = end - start;
+                // Calculate available time window in minutes
+                var availableMinutes = endMinutes - startMinutes;
+                
+                // Calculate required time for posts with intervals
                 var requiredMinutes = (postsPerDay - 1) * minInterval;
                 
-                if (requiredMinutes > availableMinutes) {
-                    alert('Not enough time between start and end time for the specified number of posts with minimum interval.');
+                // Check if there's enough time
+                if (requiredMinutes >= availableMinutes) {
+                    KSM_PS_Admin.addValidationError('time_window', ksm_ps_ajax.strings.time_window_error);
                     return false;
                 }
             }
@@ -290,43 +306,136 @@
          * Validate posts per day
          */
         validatePostsPerDay: function() {
-            var value = parseInt($(this).val());
+            var $input = $(this);
+            var value = parseInt($input.val());
             
-            if (value < 1) {
-                $(this).val(1);
-            } else if (value > 50) {
-                $(this).val(50);
-                alert('Maximum 50 posts per day allowed.');
+            // Remove previous posts per day validation errors
+            KSM_PS_Admin.removeValidationError('posts_per_day');
+            
+            if (value < 1 || value > 50) {
+                KSM_PS_Admin.addValidationError('posts_per_day', ksm_ps_ajax.strings.posts_per_day_error);
+                $input.val(Math.min(Math.max(value, 1), 50));
+                return false;
             }
             
-            // Re-validate time inputs
+            // Re-validate time inputs when posts per day changes
             KSM_PS_Admin.validateTimeInputs();
+            
+            return true;
         },
         
         /**
          * Validate minimum interval
          */
         validateMinInterval: function() {
-            var value = parseInt($(this).val());
+            var $input = $(this);
+            var value = parseInt($input.val());
             
-            if (value < 5) {
-                $(this).val(5);
-                alert('Minimum interval must be at least 5 minutes.');
-            } else if (value > 1440) {
-                $(this).val(1440);
-                alert('Maximum interval is 1440 minutes (24 hours).');
+            // Remove previous min interval validation errors
+            KSM_PS_Admin.removeValidationError('min_interval');
+            
+            if (value < 5 || value > 1440) {
+                KSM_PS_Admin.addValidationError('min_interval', ksm_ps_ajax.strings.min_interval_error);
+                $input.val(Math.min(Math.max(value, 5), 1440));
+                return false;
             }
             
-            // Re-validate time inputs
+            // Re-validate time inputs when interval changes
             KSM_PS_Admin.validateTimeInputs();
+            
+            return true;
         },
         
         /**
          * Convert time string to minutes
          */
-        timeToMinutes: function(timeStr) {
-            var parts = timeStr.split(':');
+        timeStringToMinutes: function(timeString) {
+            var parts = timeString.split(':');
             return parseInt(parts[0]) * 60 + parseInt(parts[1]);
+        },
+        
+        /**
+         * Add validation error
+         */
+        addValidationError: function(key, message) {
+            // Remove existing error with same key
+            this.removeValidationError(key);
+            
+            // Add new error
+            this.validationErrors.push({
+                key: key,
+                message: message
+            });
+        },
+        
+        /**
+         * Remove validation error by key
+         */
+        removeValidationError: function(key) {
+            this.validationErrors = this.validationErrors.filter(function(error) {
+                return error.key !== key;
+            });
+        },
+        
+        /**
+         * Show validation error using SweetAlert2
+         */
+        showValidationError: function(message) {
+            if (typeof Swal !== 'undefined') {
+                Swal.fire({
+                    icon: 'error',
+                    title: ksm_ps_ajax.strings.validation_error,
+                    text: message,
+                    confirmButtonColor: '#d33'
+                });
+            } else {
+                // Fallback to alert if SweetAlert2 is not loaded
+                alert(message);
+            }
+        },
+        
+        /**
+         * Show success message using SweetAlert2
+         */
+        showSuccessMessage: function(message) {
+            if (typeof Swal !== 'undefined') {
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Success!',
+                    text: message,
+                    confirmButtonColor: '#28a745',
+                    timer: 3000,
+                    timerProgressBar: true
+                });
+            }
+        },
+        
+        /**
+         * Validate form before submission
+         */
+        validateForm: function(e) {
+            // Clear previous errors
+            KSM_PS_Admin.validationErrors = [];
+            
+            // Run all validations
+            KSM_PS_Admin.validateTimeInputs();
+            KSM_PS_Admin.validatePostsPerDay.call($('#ksm_ps_posts_per_day')[0]);
+            KSM_PS_Admin.validateMinInterval.call($('#ksm_ps_min_interval')[0]);
+            
+            // Check if there are any validation errors
+            if (KSM_PS_Admin.validationErrors.length > 0) {
+                e.preventDefault();
+                
+                // Show all validation errors
+                var errorMessages = KSM_PS_Admin.validationErrors.map(function(error) {
+                    return error.message;
+                }).join('\n\n');
+                
+                KSM_PS_Admin.showValidationError(errorMessages);
+                return false;
+            }
+            
+            return true;
         },
         
         /**

@@ -3,7 +3,7 @@
  * Plugin Name: KSM Post Scheduler
  * Plugin URI: https://kraftysprouts.com
  * Description: Automatically schedules posts from a specific status to publish at random times
- * Version: 1.1.5
+ * Version: 1.1.6
  * Author: Krafty Sprouts Media, LLC
  * Author URI: https://kraftysprouts.com
  * License: GPL v2 or later
@@ -16,7 +16,7 @@
  * Network: false
  * 
  * @package KSM_Post_Scheduler
- * @version 1.1.5
+ * @version 1.1.6
  * @author KraftySpoutsMedia, LLC
  * @copyright 2025 KraftySpouts
  * @license GPL-2.0-or-later
@@ -38,7 +38,7 @@ if (!defined('ABSPATH')) {
 }
 
 // Define plugin constants
-define('KSM_PS_VERSION', '1.1.5');
+define('KSM_PS_VERSION', '1.1.6');
 define('KSM_PS_PLUGIN_FILE', __FILE__);
 define('KSM_PS_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('KSM_PS_PLUGIN_URL', plugin_dir_url(__FILE__));
@@ -316,11 +316,20 @@ class KSM_PS_Main {
             return;
         }
         
+        // Enqueue SweetAlert2 from CDN
+        wp_enqueue_script(
+            'sweetalert2',
+            'https://cdn.jsdelivr.net/npm/sweetalert2@11.14.5/dist/sweetalert2.all.min.js',
+            array(),
+            '11.14.5',
+            true
+        );
+        
         wp_enqueue_script('jquery');
         wp_enqueue_script(
             'ksm-ps-admin',
             KSM_PS_PLUGIN_URL . 'assets/admin.js',
-            array('jquery'),
+            array('jquery', 'sweetalert2'),
             KSM_PS_VERSION,
             true
         );
@@ -331,7 +340,14 @@ class KSM_PS_Main {
             'strings' => array(
                 'running' => __('Running...', 'ksm-post-scheduler'),
                 'success' => __('Scheduler executed successfully!', 'ksm-post-scheduler'),
-                'error' => __('Error occurred while running scheduler.', 'ksm-post-scheduler')
+                'error' => __('Error occurred while running scheduler.', 'ksm-post-scheduler'),
+                'validation_error' => __('Validation Error', 'ksm-post-scheduler'),
+                'time_format_error' => __('Please enter time in 12-hour format (e.g., 9:00 AM or 6:30 PM)', 'ksm-post-scheduler'),
+                'posts_per_day_error' => __('Posts per day must be between 1 and 50', 'ksm-post-scheduler'),
+                'min_interval_error' => __('Minimum interval must be between 5 and 1440 minutes', 'ksm-post-scheduler'),
+                'time_window_error' => __('Not enough time between start and end time for the specified number of posts with minimum intervals', 'ksm-post-scheduler'),
+                'settings_saved' => __('Settings saved successfully!', 'ksm-post-scheduler'),
+                'settings_error' => __('Error saving settings. Please check your input and try again.', 'ksm-post-scheduler')
             )
         ));
         
@@ -356,10 +372,18 @@ class KSM_PS_Main {
         $current_posts_per_day = $current_options['posts_per_day'] ?? 5;
         
         $sanitized = array();
+        $validation_errors = array();
         
         $sanitized['enabled'] = isset($input['enabled']) ? (bool) $input['enabled'] : false;
         $sanitized['post_status'] = sanitize_text_field($input['post_status'] ?? 'draft');
-        $sanitized['posts_per_day'] = absint($input['posts_per_day'] ?? 5);
+        
+        // Validate and sanitize posts per day
+        $posts_per_day = absint($input['posts_per_day'] ?? 5);
+        if ($posts_per_day < 1 || $posts_per_day > 50) {
+            $validation_errors[] = __('Posts per day must be between 1 and 50.', 'ksm-post-scheduler');
+            $posts_per_day = max(1, min(50, $posts_per_day)); // Clamp to valid range
+        }
+        $sanitized['posts_per_day'] = $posts_per_day;
         
         // Handle time fields - use 24-hour format for storage
         $sanitized['start_time'] = sanitize_text_field($input['start_time'] ?? '09:00');
@@ -370,6 +394,8 @@ class KSM_PS_Main {
             $converted_start = $this->convert_12_to_24($input['start_time_display']);
             if ($converted_start) {
                 $sanitized['start_time'] = $converted_start;
+            } else {
+                $validation_errors[] = __('Invalid start time format. Please use 12-hour format (e.g., 9:00 AM).', 'ksm-post-scheduler');
             }
         }
         
@@ -377,10 +403,36 @@ class KSM_PS_Main {
             $converted_end = $this->convert_12_to_24($input['end_time_display']);
             if ($converted_end) {
                 $sanitized['end_time'] = $converted_end;
+            } else {
+                $validation_errors[] = __('Invalid end time format. Please use 12-hour format (e.g., 6:00 PM).', 'ksm-post-scheduler');
             }
         }
         
-        $sanitized['min_interval'] = absint($input['min_interval'] ?? 30);
+        // Validate and sanitize minimum interval
+        $min_interval = absint($input['min_interval'] ?? 30);
+        if ($min_interval < 5 || $min_interval > 1440) {
+            $validation_errors[] = __('Minimum interval must be between 5 and 1440 minutes.', 'ksm-post-scheduler');
+            $min_interval = max(5, min(1440, $min_interval)); // Clamp to valid range
+        }
+        $sanitized['min_interval'] = $min_interval;
+        
+        // Validate time window
+        if (!empty($sanitized['start_time']) && !empty($sanitized['end_time'])) {
+            $start_minutes = $this->time_to_minutes($sanitized['start_time']);
+            $end_minutes = $this->time_to_minutes($sanitized['end_time']);
+            
+            if ($end_minutes <= $start_minutes) {
+                $validation_errors[] = __('End time must be after start time.', 'ksm-post-scheduler');
+            } else {
+                // Check if there's enough time for the specified posts with intervals
+                $available_minutes = $end_minutes - $start_minutes;
+                $required_minutes = ($posts_per_day - 1) * $min_interval;
+                
+                if ($required_minutes >= $available_minutes) {
+                    $validation_errors[] = __('Not enough time between start and end time for the specified number of posts with minimum intervals.', 'ksm-post-scheduler');
+                }
+            }
+        }
         
         // Sanitize days active
         $valid_days = array('monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday');
@@ -393,6 +445,18 @@ class KSM_PS_Main {
             }
         }
         
+        // If there are validation errors, add them as settings errors
+        if (!empty($validation_errors)) {
+            foreach ($validation_errors as $error) {
+                add_settings_error(
+                    $this->option_name,
+                    'validation_error',
+                    $error,
+                    'error'
+                );
+            }
+        }
+        
         // Check if posts_per_day has changed and there are scheduled posts
         if ($current_posts_per_day !== $sanitized['posts_per_day']) {
             error_log("KSM DEBUG - Posts per day changed from $current_posts_per_day to {$sanitized['posts_per_day']}");
@@ -402,6 +466,18 @@ class KSM_PS_Main {
         }
         
         return $sanitized;
+    }
+    
+    /**
+     * Convert time string to minutes
+     * 
+     * @param string $time_string Time in HH:MM format
+     * @return int Minutes since midnight
+     * @since 1.1.5
+     */
+    private function time_to_minutes($time_string) {
+        $parts = explode(':', $time_string);
+        return (int)$parts[0] * 60 + (int)$parts[1];
     }
     
     /**
