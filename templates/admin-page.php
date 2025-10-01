@@ -103,7 +103,7 @@ if (!defined('ABSPATH')) {
                             </th>
                             <td>
                                 <?php
-                                $start_time_12 = $options['start_time'] ?? '9:00 AM';
+                                $start_time_12 = $options['start_time'];
                                 ?>
                                 <input type="text" 
                                        id="ksm_ps_start_time" 
@@ -123,7 +123,7 @@ if (!defined('ABSPATH')) {
                             </th>
                             <td>
                                 <?php
-                                $end_time_12 = $options['end_time'] ?? '6:00 PM';
+                                $end_time_12 = $options['end_time'];
                                 ?>
                                 <input type="text" 
                                        id="ksm_ps_end_time" 

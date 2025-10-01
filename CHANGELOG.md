@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.3.1] - 01/10/2025
+### FIXED
+- **FIXED**: Persistent 24-hour format values in database options
+- **ENHANCED**: Plugin activation now forces time values to 12-hour format defaults
+- **IMPROVED**: Removed unnecessary 24-hour to 12-hour conversion functions
+- **CLEANED**: Simplified codebase with pure 12-hour format implementation
+
 ## [1.3.0] - 01/10/2025
 ### MAJOR UPDATE: 12-HOUR FORMAT IMPLEMENTATION
 - **CHANGED**: Admin interface now uses 12-hour format (AM/PM) for start and end times
@@ -221,8 +228,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Admin settings page with comprehensive configuration options:
   - Post Status to Monitor (select dropdown)
   - Posts Per Day (number input, default: 5)
-  - Start Time (time input, default: 09:00)
-  - End Time (time input, default: 18:00)
+  - Start Time (time input, default: 9:00 AM)
+  - End Time (time input, default: 6:00 PM)
   - Days Active (checkboxes for each day of week)
   - Minimum Interval Between Posts (number in minutes, default: 30)
   - Enable/Disable toggle with modern switch design

@@ -3,7 +3,7 @@
  * Plugin Name: KSM Post Scheduler
  * Plugin URI: https://kraftysprouts.com
  * Description: Automatically schedules posts from a specific status to publish at random times
- * Version: 1.3.0
+ * Version: 1.3.1
  * Author: Krafty Sprouts Media, LLC
  * Author URI: https://kraftysprouts.com
  * License: GPL v2 or later
@@ -149,8 +149,8 @@ class KSM_PS_Main {
             'enabled' => false,
             'post_status' => 'draft',
             'posts_per_day' => 5,
-            'start_time' => '09:00',
-            'end_time' => '18:00',
+            'start_time' => '9:00 AM',
+            'end_time' => '6:00 PM',
             'days_active' => array('monday', 'tuesday', 'wednesday', 'thursday', 'friday'),
             'min_interval' => 30,
             'version' => KSM_PS_VERSION,
@@ -167,6 +167,11 @@ class KSM_PS_Main {
             // Plugin update - merge new options with existing ones
             $updated_options = array_merge($default_options, $existing_options);
             $updated_options['version'] = KSM_PS_VERSION;
+            
+            // Force update time values to 12-hour format (since no existing users)
+            $updated_options['start_time'] = '9:00 AM';
+            $updated_options['end_time'] = '6:00 PM';
+            
             update_option($this->option_name, $updated_options);
         }
         
@@ -668,8 +673,8 @@ class KSM_PS_Main {
         }
         
         // Get time settings
-        $start_time = $options['start_time'] ?? '09:00';
-        $end_time = $options['end_time'] ?? '18:00';
+        $start_time = $options['start_time'] ?? '9:00 AM';
+        $end_time = $options['end_time'] ?? '6:00 PM';
         $min_interval = $options['min_interval'] ?? 30;
         $days_active = $options['days_active'] ?? array('monday', 'tuesday', 'wednesday', 'thursday', 'friday');
         
