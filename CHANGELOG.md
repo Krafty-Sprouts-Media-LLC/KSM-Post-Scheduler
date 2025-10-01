@@ -2,6 +2,19 @@
 
 All notable changes to the KSM Post Scheduler plugin will be documented in this file.
 
+## [1.4.2] - 01/10/2025
+
+### Fixed
+- **CRITICAL**: Fixed day distribution bug where all posts were being scheduled for the same date despite "Posts Per Day" limit
+- Corrected day offset calculation in `get_next_valid_day()` function
+- Fixed logic where `$base_offset` calculation was redundant and incorrect
+- Ensured proper day progression when posts per day limit is reached
+
+### Improved
+- Enhanced day offset logic to properly handle both "can schedule today" and future scheduling scenarios
+- Added comprehensive test validation for day distribution functionality
+- Improved debug logging for day offset calculations
+
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 

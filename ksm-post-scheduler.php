@@ -3,7 +3,7 @@
  * Plugin Name: KSM Post Scheduler
  * Plugin URI: https://kraftysprouts.com
  * Description: Automatically schedules posts from a specific status to publish at random times
- * Version: 1.4.1
+ * Version: 1.4.2
  * Author: Krafty Sprouts Media, LLC
  * Author URI: https://kraftysprouts.com
  * License: GPL v2 or later
@@ -16,7 +16,7 @@
  * Network: false
  * 
  * @package KSM_Post_Scheduler
- * @version 1.4.1
+ * @version 1.4.2
  * @author KraftySpoutsMedia, LLC
  * @copyright 2025 KraftySpouts
  * @license GPL-2.0-or-later
@@ -38,7 +38,7 @@ if (!defined('ABSPATH')) {
 }
 
 // Define plugin constants
-define('KSM_PS_VERSION', '1.4.1');
+define('KSM_PS_VERSION', '1.4.2');
 define('KSM_PS_PLUGIN_FILE', __FILE__);
 define('KSM_PS_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('KSM_PS_PLUGIN_URL', plugin_dir_url(__FILE__));
@@ -750,7 +750,7 @@ class KSM_PS_Main {
         $daily_schedules = array();
         
         foreach ($posts as $index => $post) {
-            // Check if we need to move to the next day
+            // Check if we need to move to the next day BEFORE calculating target date
             if ($posts_scheduled_for_current_day >= $posts_per_day) {
                 $current_day_offset++;
                 $posts_scheduled_for_current_day = 0;
@@ -760,6 +760,8 @@ class KSM_PS_Main {
             // Find the next valid scheduling day
             $target_timestamp = $this->get_next_valid_day($current_day_offset, $days_active, $can_schedule_today);
             $target_date = wp_date('Y-m-d', $target_timestamp);
+            
+            error_log("KSM DEBUG - Post {$post->ID}: day_offset=$current_day_offset, posts_for_day=$posts_scheduled_for_current_day, target_date=$target_date");
             
             // Generate times for this day if not already done
             if (!isset($daily_schedules[$target_date])) {
@@ -869,8 +871,10 @@ class KSM_PS_Main {
             // If we can schedule today and offset is 0, use today
             $target_timestamp = $current_wp_timestamp;
         } else {
-            // Otherwise, calculate from tomorrow + offset
-            $base_offset = $can_schedule_today ? $day_offset : ($day_offset);
+            // Calculate the correct offset:
+            // - If can_schedule_today is true: day_offset represents days from today
+            // - If can_schedule_today is false: day_offset represents days from tomorrow
+            $base_offset = $can_schedule_today ? $day_offset : ($day_offset + 1);
             $target_timestamp = $current_wp_timestamp + ($base_offset * 24 * 60 * 60);
         }
         
