@@ -2,6 +2,25 @@
 
 All notable changes to the KSM Post Scheduler plugin will be documented in this file.
 
+## [1.4.4] - 01/10/2025
+
+### Removed
+- **BUFFER FUNCTIONALITY**: Removed all 30-minute buffer functionality from scheduling logic
+- Eliminated `$buffer_minutes` variable and related calculations
+- Removed buffer considerations from `can_schedule_today` logic
+- Simplified effective start time calculations by removing buffer from current time
+
+### Improved
+- **SIMPLIFIED SCHEDULING**: Streamlined scheduling logic to rely solely on "Minimum Interval Between Posts" setting
+- Enhanced performance by removing redundant buffer calculations
+- Cleaner code with fewer variables and simpler time calculations
+- More predictable scheduling behavior without buffer interference
+
+### Technical
+- Updated `$latest_scheduling_time` to use `$end_minutes` directly instead of `$end_minutes - $buffer_minutes`
+- Modified `$effective_start_time` calculation to use `max($current_time_minutes, $start_minutes)` instead of adding buffer
+- Simplified today's start time adjustment to use current time directly without buffer addition
+
 ## [1.4.3] - 01/10/2025
 
 ### Fixed

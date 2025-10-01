@@ -3,7 +3,7 @@
  * Plugin Name: KSM Post Scheduler
  * Plugin URI: https://kraftysprouts.com
  * Description: Automatically schedules posts from a specific status to publish at random times
- * Version: 1.4.3
+ * Version: 1.4.4
  * Author: Krafty Sprouts Media, LLC
  * Author URI: https://kraftysprouts.com
  * License: GPL v2 or later
@@ -16,7 +16,7 @@
  * Network: false
  * 
  * @package KSM_Post_Scheduler
- * @version 1.4.3
+ * @version 1.4.4
  * @author KraftySpoutsMedia, LLC
  * @copyright 2025 KraftySpouts
  * @license GPL-2.0-or-later
@@ -38,7 +38,7 @@ if (!defined('ABSPATH')) {
 }
 
 // Define plugin constants
-define('KSM_PS_VERSION', '1.4.3');
+define('KSM_PS_VERSION', '1.4.4');
 define('KSM_PS_PLUGIN_FILE', __FILE__);
 define('KSM_PS_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('KSM_PS_PLUGIN_URL', plugin_dir_url(__FILE__));
@@ -706,16 +706,15 @@ class KSM_PS_Main {
         $today_name = strtolower(current_time('l'));
         
         if (in_array($today_name, $days_active)) {
-            // Check if we're still within scheduling hours and have buffer time
-            $buffer_minutes = 30; // 30-minute buffer
-            $latest_scheduling_time = $end_minutes - $buffer_minutes;
+            // Check if we're still within scheduling hours
+            $latest_scheduling_time = $end_minutes;
             
             // We can schedule today if:
-            // 1. Current time is before the latest scheduling time (end time - buffer)
+            // 1. Current time is before the latest scheduling time (end time)
             // 2. We still have time for at least one post (considering start time and minimum interval)
             if ($current_time_minutes < $latest_scheduling_time) {
                 // Calculate the effective start time for today
-                $effective_start_time = max($current_time_minutes + 30, $start_minutes); // 30-minute buffer from current time (consistent with time generation)
+                $effective_start_time = max($current_time_minutes, $start_minutes);
                 
                 // Check if we have enough time between effective start and latest scheduling time
                 $remaining_time_today = $latest_scheduling_time - $effective_start_time;
@@ -767,11 +766,10 @@ class KSM_PS_Main {
                 // For today, adjust start time if needed
                 $day_start_time = $start_time;
                 if ($current_day_offset === 0 && $can_schedule_today) {
-                    // For today, start from current time + buffer if it's later than start time
-                    $current_plus_buffer = $current_time_minutes + 30; // 30-minute buffer
-                    if ($current_plus_buffer > $start_minutes) {
-                        $adjusted_hour = floor($current_plus_buffer / 60);
-                        $adjusted_minute = $current_plus_buffer % 60;
+                    // For today, start from current time if it's later than start time
+                    if ($current_time_minutes > $start_minutes) {
+                        $adjusted_hour = floor($current_time_minutes / 60);
+                        $adjusted_minute = $current_time_minutes % 60;
                         $day_start_time = sprintf('%d:%02d %s', 
                             $adjusted_hour > 12 ? $adjusted_hour - 12 : ($adjusted_hour == 0 ? 12 : $adjusted_hour),
                             $adjusted_minute,
