@@ -3,7 +3,7 @@
  * Plugin Name: KSM Post Scheduler
  * Plugin URI: https://kraftysprouts.com
  * Description: Automatically schedules posts from a specific status to publish at random times
- * Version: 1.1.2
+ * Version: 1.1.3
  * Author: Krafty Sprouts Media, LLC
  * Author URI: https://kraftysprouts.com
  * License: GPL v2 or later
@@ -16,7 +16,7 @@
  * Network: false
  * 
  * @package KSM_Post_Scheduler
- * @version 1.1.2
+ * @version 1.1.3
  * @author KraftySpoutsMedia, LLC
  * @copyright 2025 KraftySpouts
  * @license GPL-2.0-or-later
@@ -38,7 +38,7 @@ if (!defined('ABSPATH')) {
 }
 
 // Define plugin constants
-define('KSM_PS_VERSION', '1.1.2');
+define('KSM_PS_VERSION', '1.1.3');
 define('KSM_PS_PLUGIN_FILE', __FILE__);
 define('KSM_PS_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('KSM_PS_PLUGIN_URL', plugin_dir_url(__FILE__));
@@ -489,7 +489,9 @@ class KSM_PS_Main {
         $scheduled_count = 0;
         foreach ($posts as $index => $post) {
             if (isset($times[$index])) {
-                $scheduled_time = date('Y-m-d') . ' ' . $times[$index] . ':00';
+                // Schedule for tomorrow to ensure posts are properly scheduled, not immediately published
+                $tomorrow = date('Y-m-d', strtotime('+1 day'));
+                $scheduled_time = $tomorrow . ' ' . $times[$index] . ':00';
                 
                 wp_update_post(array(
                     'ID' => $post->ID,

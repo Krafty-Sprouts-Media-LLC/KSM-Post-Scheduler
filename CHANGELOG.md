@@ -5,6 +5,19 @@ All notable changes to the KSM Post Scheduler plugin will be documented in this 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.3] - 01/10/2025
+
+### Fixed
+- **Manual Testing Button**: Fixed critical bug where "Manual Testing" button was immediately publishing posts instead of scheduling them
+  - Changed scheduling logic to use tomorrow's date instead of today's date
+  - Prevents WordPress from immediately publishing posts when scheduled time has already passed today
+  - Ensures all posts are properly scheduled for future publication, not immediately published
+  - Resolves issue where fresh draft posts were published instantly while old published posts (returned to draft) were correctly scheduled
+
+### Technical
+- Modified schedule_posts() function to use `strtotime('+1 day')` for scheduling date calculation
+- Added explanatory comment for future maintenance clarity
+
 ## [1.1.2] - 01/10/2025
 
 ### Added
