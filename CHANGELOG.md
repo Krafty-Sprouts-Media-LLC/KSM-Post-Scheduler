@@ -5,6 +5,30 @@ All notable changes to the KSM Post Scheduler plugin will be documented in this 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.4] - 01/10/2025
+
+### Fixed
+- **Critical Scheduling Bug**: Fixed issue where posts were being published immediately instead of being scheduled for future publication
+  - Improved timezone handling and timestamp calculations to ensure proper future scheduling
+  - Enhanced time comparison logic using proper timestamp comparison instead of string comparison
+  - Added multiple safety checks to prevent scheduling posts in the past
+  - Added comprehensive debugging logs to track scheduling process and identify issues
+  - Fixed wp_update_post() error handling to properly detect and report scheduling failures
+  - Added post-update verification to ensure posts are correctly set to 'future' status
+
+### Enhanced
+- **Debugging System**: Added extensive debug logging throughout the scheduling process
+  - Logs current WordPress time, server time, and timestamps for accurate troubleshooting
+  - Tracks each post's scheduling process with detailed status updates
+  - Verifies post status after updates to ensure proper scheduling
+  - Added safety checks to prevent accidental immediate publication
+
+### Technical
+- Modified schedule_posts() function with improved timestamp-based time calculations
+- Enhanced error handling in wp_update_post() calls with proper error detection
+- Added multiple validation layers to ensure scheduled times are always in the future
+- Improved debugging output for better maintenance and troubleshooting
+
 ## [1.1.3] - 01/10/2025
 
 ### Fixed
