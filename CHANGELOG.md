@@ -5,6 +5,16 @@ All notable changes to the KSM Post Scheduler plugin will be documented in this 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.7] - 01/10/2025
+
+### Fixed
+- **Critical Bug Fix**: Resolved fatal error "Cannot redeclare KSM_PS_Main::time_to_minutes()"
+  - Removed duplicate function declaration that was causing plugin crashes
+  - Maintained the newer, more robust implementation of the time conversion function
+
+### Updated
+- **SweetAlert2 Library**: Updated to version 11.23.0 for latest features and security improvements
+
 ## [1.1.6] - 01/10/2025
 
 ### Added
