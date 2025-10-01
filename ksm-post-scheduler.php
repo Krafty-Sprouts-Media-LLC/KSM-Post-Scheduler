@@ -3,7 +3,7 @@
  * Plugin Name: KSM Post Scheduler
  * Plugin URI: https://kraftysprouts.com
  * Description: Automatically schedules posts from a specific status to publish at random times
- * Version: 1.4.4
+ * Version: 1.4.5
  * Author: Krafty Sprouts Media, LLC
  * Author URI: https://kraftysprouts.com
  * License: GPL v2 or later
@@ -16,7 +16,7 @@
  * Network: false
  * 
  * @package KSM_Post_Scheduler
- * @version 1.4.4
+ * @version 1.4.5
  * @author KraftySpoutsMedia, LLC
  * @copyright 2025 KraftySpouts
  * @license GPL-2.0-or-later
@@ -763,8 +763,10 @@ class KSM_PS_Main {
             
             // Generate times for this day if not already done
             if (!isset($daily_schedules[$target_date])) {
-                // For today, adjust start time if needed
+                // For today, adjust start time if needed and calculate actual posts that can fit
                 $day_start_time = $start_time;
+                $posts_to_generate = $posts_per_day;
+                
                 if ($current_day_offset === 0 && $can_schedule_today) {
                     // For today, start from current time if it's later than start time
                     if ($current_time_minutes > $start_minutes) {
@@ -777,10 +779,16 @@ class KSM_PS_Main {
                         );
                         error_log("KSM DEBUG - Adjusted start time for today: $day_start_time");
                     }
+                    
+                    // Calculate how many posts can actually fit in remaining time today
+                    $effective_start_time = max($current_time_minutes, $start_minutes);
+                    $remaining_time_today = $end_minutes - $effective_start_time;
+                    $posts_to_generate = min($posts_per_day, floor($remaining_time_today / $min_interval) + 1);
+                    error_log("KSM DEBUG - Today can fit $posts_to_generate posts (remaining time: $remaining_time_today minutes)");
                 }
                 
                 $daily_schedules[$target_date] = $this->generate_random_times(
-                    $posts_per_day,
+                    $posts_to_generate,
                     $day_start_time,
                     $end_time,
                     $min_interval

@@ -2,6 +2,13 @@
 
 All notable changes to the KSM Post Scheduler plugin will be documented in this file.
 
+## [1.4.5] - 01/10/2025
+
+### Fixed
+- **SCHEDULING BUG**: Fixed critical bug in time slot generation where `generate_random_times()` was called with total `posts_per_day` instead of actual `posts_to_generate` for today's scheduling
+- Corrected calculation to use the actual number of posts that can fit within remaining time for current day
+- Resolved issue where scheduler would generate 0 time slots despite having sufficient time available
+
 ## [1.4.4] - 01/10/2025
 
 ### Removed
