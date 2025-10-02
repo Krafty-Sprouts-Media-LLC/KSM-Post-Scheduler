@@ -3,7 +3,7 @@
  * Plugin Name: KSM Post Scheduler
  * Plugin URI: https://kraftysprouts.com
  * Description: Automatically schedules posts from a specific status to publish at random times
- * Version: 1.8.6
+ * Version: 1.8.7
  * Author: Krafty Sprouts Media, LLC
  * Author URI: https://kraftysprouts.com
  * License: GPL v2 or later
@@ -945,13 +945,13 @@ class KSM_PS_Main {
         
         // For both manual and cron scheduling, allow scheduling across multiple days
         // Manual scheduling can now distribute posts across future dates like cron runs
-        $max_posts_to_schedule = $posts_per_day * 7; // Allow up to 7 days worth for both manual and cron
+        // FIXED: Remove artificial limit to allow scheduling of all available posts
         
         // Get posts to schedule
         $post_status = $options['post_status'] ?? 'draft';
         $posts = get_posts(array(
             'post_status' => $post_status,
-            'numberposts' => $max_posts_to_schedule,
+            'numberposts' => -1, // Get all available posts instead of limiting
             'post_type' => 'post',
             'orderby' => 'date',
             'order' => 'ASC'

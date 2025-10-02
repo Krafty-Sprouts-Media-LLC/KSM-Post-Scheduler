@@ -2,6 +2,20 @@
 
 All notable changes to the KSM Post Scheduler plugin will be documented in this file.
 
+## [1.8.7] - 02/10/2025
+
+### Fixed
+- **Critical Scheduling Limit Bug**: Fixed issue where only 35 posts were being scheduled when more posts were available
+  - Removed artificial limit of `posts_per_day * 7` that was restricting post retrieval
+  - Changed `numberposts` parameter from limited value to `-1` to retrieve all available posts
+  - Now properly schedules all available posts regardless of quantity
+  - Resolves issue where posts beyond the 35-post limit were being ignored
+
+### Technical Changes
+- Modified `schedule_posts()` function to remove the `$max_posts_to_schedule` limitation
+- Updated `get_posts()` query to use `numberposts => -1` for unlimited post retrieval
+- Enhanced scheduling logic to handle any number of posts across multiple days
+
 ## [1.8.6] - 02/10/2025
 
 ### Removed
