@@ -50,6 +50,9 @@
             
             // Smart suggestion buttons
             $(document).on('click', '.suggestion-btn', this.applySuggestion);
+            
+            // Notice dismissal
+            $(document).on('click', '.notice.is-dismissible .notice-dismiss', this.handleNoticeDismiss);
         },
         
         /**
@@ -766,6 +769,39 @@
             setTimeout(function() {
                 $btn.removeClass('applied');
             }, 2000);
+        },
+        
+        /**
+         * Handle notice dismissal with AJAX persistence
+         */
+        handleNoticeDismiss: function(e) {
+            var $notice = $(this).closest('.notice[data-notice-key]');
+            var noticeKey = $notice.data('notice-key');
+            
+            // Only handle our plugin notices
+            if (!noticeKey) {
+                return;
+            }
+            
+            // Send AJAX request to persist dismissal
+            $.ajax({
+                url: ksm_ps_ajax.ajax_url,
+                type: 'POST',
+                data: {
+                    action: 'ksm_ps_dismiss_notice',
+                    notice_key: noticeKey,
+                    nonce: ksm_ps_ajax.nonce
+                },
+                success: function(response) {
+                    // Notice will be hidden by WordPress default behavior
+                    if (response.success) {
+                        console.log('KSM Post Scheduler: Notice dismissed successfully');
+                    }
+                },
+                error: function(xhr, status, error) {
+                    console.error('KSM Post Scheduler: Error dismissing notice:', error);
+                }
+            });
         },
         
         /**

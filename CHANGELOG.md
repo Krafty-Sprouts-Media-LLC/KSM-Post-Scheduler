@@ -2,6 +2,31 @@
 
 All notable changes to the KSM Post Scheduler plugin will be documented in this file.
 
+## [1.9.2] - 02/10/2025
+
+### Fixed
+- **Admin Notice Dismissal**: Fixed dismissible notice functionality to properly persist dismissal state
+  - Added AJAX handler `ksm_ps_dismiss_notice` to handle notice dismissal requests
+  - Implemented user meta storage to remember dismissed notices per user
+  - Added JavaScript event handler for notice dismissal with proper AJAX communication
+  - Version update notices now stay dismissed after page reload
+  - Enhanced notice system with unique data attributes for proper identification
+
+## [1.9.1] - 02/10/2025
+
+### Fixed
+- **CRITICAL: Prevented Immediate Publication**: Added future timestamp validation before `wp_schedule_single_event()`
+  - Fixed critical bug where posts with past timestamps would be published immediately when plugin is active
+  - Added validation to ensure scheduled timestamps are always in the future before cron scheduling
+  - Enhanced error logging for posts with invalid timestamps
+  - Ensures plugin activation does not trigger unintended publications
+
+### Enhanced
+- **WordPress Timezone Consistency**: Completed transition to exclusive WordPress timezone usage
+  - Replaced remaining `date('l')` with `current_time('l')` for day determination
+  - All scheduling now uses WordPress timezone functions consistently
+  - Eliminated server timezone dependencies for improved reliability
+
 ## [1.9.0] - 02/10/2025
 
 ### Added

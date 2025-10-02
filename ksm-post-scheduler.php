@@ -3,7 +3,7 @@
  * Plugin Name: KSM Post Scheduler
  * Plugin URI: https://kraftysprouts.com
  * Description: Automatically schedules posts from a specific status to publish at random times
- * Version: 1.9.0
+ * Version: 1.9.2
  * Author: Krafty Sprouts Media, LLC
  * Author URI: https://kraftysprouts.com
  * License: GPL v2 or later
@@ -38,7 +38,7 @@ if (!defined('ABSPATH')) {
 }
 
 // Define plugin constants
-define('KSM_PS_VERSION', '1.9.0');
+define('KSM_PS_VERSION', '1.9.2');
 define('KSM_PS_PLUGIN_FILE', __FILE__);
 define('KSM_PS_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('KSM_PS_PLUGIN_URL', plugin_dir_url(__FILE__));
@@ -129,6 +129,7 @@ class KSM_PS_Main {
         // AJAX hooks
         add_action('wp_ajax_ksm_ps_run_now', array($this, 'ajax_run_now'));
         add_action('wp_ajax_ksm_ps_get_status', array($this, 'ajax_get_status'));
+        add_action('wp_ajax_ksm_ps_dismiss_notice', array($this, 'ajax_dismiss_notice'));
     }
     
     /**
@@ -296,17 +297,26 @@ class KSM_PS_Main {
         // Check for version updates
         $options = get_option($this->option_name);
         if ($options && isset($options['version']) && version_compare($options['version'], KSM_PS_VERSION, '<')) {
-            ?>
-            <div class="notice notice-info is-dismissible">
-                <p>
-                    <strong><?php _e('KSM Post Scheduler', 'ksm-post-scheduler'); ?></strong> 
-                    <?php printf(__('has been updated to version %s.', 'ksm-post-scheduler'), KSM_PS_VERSION); ?>
-                    <a href="<?php echo admin_url('options-general.php?page=ksm-post-scheduler'); ?>">
-                        <?php _e('View settings', 'ksm-post-scheduler'); ?>
-                    </a>
-                </p>
-            </div>
-            <?php
+            // Check if this version update notice has been dismissed
+            $dismissed_notices = get_user_meta(get_current_user_id(), 'ksm_ps_dismissed_notices', true);
+            if (!is_array($dismissed_notices)) {
+                $dismissed_notices = array();
+            }
+            
+            $notice_key = 'version_update_' . KSM_PS_VERSION;
+            if (!in_array($notice_key, $dismissed_notices)) {
+                ?>
+                <div class="notice notice-info is-dismissible" data-notice-key="<?php echo esc_attr($notice_key); ?>">
+                    <p>
+                        <strong><?php _e('KSM Post Scheduler', 'ksm-post-scheduler'); ?></strong> 
+                        <?php printf(__('has been updated to version %s.', 'ksm-post-scheduler'), KSM_PS_VERSION); ?>
+                        <a href="<?php echo admin_url('options-general.php?page=ksm-post-scheduler'); ?>">
+                            <?php _e('View settings', 'ksm-post-scheduler'); ?>
+                        </a>
+                    </p>
+                </div>
+                <?php
+            }
         }
         
         // TEMPORARY DEBUG: Show current settings on plugin page
@@ -675,8 +685,8 @@ class KSM_PS_Main {
             return;
         }
         
-        // Check if today is an active day
-        $today = strtolower(date('l'));
+        // Check if today is an active day (using WordPress timezone)
+        $today = strtolower(current_time('l'));
         if (!in_array($today, $options['days_active'] ?? array())) {
             return;
         }
@@ -1086,6 +1096,13 @@ class KSM_PS_Main {
             }
             
             $scheduled_timestamp = $scheduled_datetime->getTimestamp();
+            
+            // CRITICAL: Validate that the timestamp is in the future to prevent immediate publication
+            $current_timestamp = current_time('timestamp');
+            if ($scheduled_timestamp <= $current_timestamp) {
+                error_log("KSM Post Scheduler: Skipping post {$post->ID} - Scheduled timestamp {$scheduled_timestamp} is not in the future (current: {$current_timestamp})");
+                continue;
+            }
             
             // Convert to MySQL format for WordPress
             $scheduled_time_mysql = $scheduled_datetime->format('Y-m-d H:i:s');
@@ -1673,7 +1690,71 @@ class KSM_PS_Main {
         }
     }
     
-
+    /**
+     * Handle AJAX request to dismiss admin notices
+     * 
+     * @since 1.9.1
+     */
+    public function ajax_dismiss_notice() {
+        try {
+            // Verify nonce
+            if (!check_ajax_referer('ksm_ps_nonce', 'nonce', false)) {
+                wp_send_json_error(array(
+                    'message' => __('Security check failed. Please refresh the page and try again.', 'ksm-post-scheduler')
+                ));
+                return;
+            }
+            
+            // Check permissions
+            if (!current_user_can('manage_options')) {
+                wp_send_json_error(array(
+                    'message' => __('You do not have sufficient permissions to perform this action.', 'ksm-post-scheduler')
+                ));
+                return;
+            }
+            
+            // Get notice key from request
+            $notice_key = sanitize_text_field($_POST['notice_key'] ?? '');
+            if (empty($notice_key)) {
+                wp_send_json_error(array(
+                    'message' => __('Invalid notice key.', 'ksm-post-scheduler')
+                ));
+                return;
+            }
+            
+            // Get current dismissed notices for user
+            $user_id = get_current_user_id();
+            $dismissed_notices = get_user_meta($user_id, 'ksm_ps_dismissed_notices', true);
+            if (!is_array($dismissed_notices)) {
+                $dismissed_notices = array();
+            }
+            
+            // Add notice key to dismissed list if not already there
+            if (!in_array($notice_key, $dismissed_notices)) {
+                $dismissed_notices[] = $notice_key;
+                update_user_meta($user_id, 'ksm_ps_dismissed_notices', $dismissed_notices);
+            }
+            
+            // If this is a version update notice, also update the plugin version in options
+            if (strpos($notice_key, 'version_update_') === 0) {
+                $options = get_option($this->option_name);
+                if ($options) {
+                    $options['version'] = KSM_PS_VERSION;
+                    update_option($this->option_name, $options);
+                }
+            }
+            
+            wp_send_json_success(array(
+                'message' => __('Notice dismissed successfully.', 'ksm-post-scheduler')
+            ));
+            
+        } catch (Exception $e) {
+            error_log("KSM Post Scheduler AJAX Error (dismiss_notice): " . $e->getMessage());
+            wp_send_json_error(array(
+                'message' => __('An unexpected error occurred while dismissing the notice.', 'ksm-post-scheduler')
+            ));
+        }
+    }
     
 
 }
