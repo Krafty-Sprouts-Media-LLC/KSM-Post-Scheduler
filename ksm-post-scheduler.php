@@ -3,7 +3,7 @@
  * Plugin Name: KSM Post Scheduler
  * Plugin URI: https://kraftysprouts.com
  * Description: Automatically schedules posts from a specific status to publish at random times
- * Version: 1.6.1
+ * Version: 1.6.2
  * Author: Krafty Sprouts Media, LLC
  * Author URI: https://kraftysprouts.com
  * License: GPL v2 or later
@@ -808,8 +808,15 @@ class KSM_PS_Main {
         $current_day_offset = 0;
         $posts_scheduled_for_current_day = 0;
         
-        // For manual testing, check how many posts are already scheduled for today
+        // For manual scheduling, bypass daily limits and schedule immediately
         if (!$is_cron_run) {
+            error_log("KSM DEBUG - Manual scheduling mode: bypassing daily limits");
+            error_log("KSM DEBUG - Will schedule all " . count($posts) . " posts regardless of daily limits");
+            
+            // In manual mode, we don't check daily limits - schedule all requested posts
+            // This allows administrators to override automatic scheduling constraints
+        } else {
+            // For automatic cron runs, check daily limits
             $today_scheduled = get_posts(array(
                 'post_status' => 'future',
                 'numberposts' => -1,
@@ -914,19 +921,57 @@ class KSM_PS_Main {
                 
                 // For today, adjust start time and calculate available slots
                 if ($current_day_offset === 0 && $can_schedule_today) {
+                    $effective_start_time = max($current_time_minutes, $start_minutes);
+                    
+                    // CRITICAL FIX: Ensure start time is always in the future for today
                     if ($current_time_minutes > $start_minutes) {
-                        $adjusted_hour = floor($current_time_minutes / 60);
-                        $adjusted_minute = $current_time_minutes % 60;
+                        // Add buffer time to ensure we're definitely in the future
+                        $buffer_minutes = 5; // 5-minute buffer
+                        $safe_start_time = $current_time_minutes + $buffer_minutes;
+                        
+                        $adjusted_hour = floor($safe_start_time / 60);
+                        $adjusted_minute = $safe_start_time % 60;
+                        
+                        // Handle hour overflow (past midnight)
+                        if ($adjusted_hour >= 24) {
+                            error_log("KSM DEBUG - Time calculation would go past midnight, skipping today");
+                            $can_schedule_today = false;
+                            $current_day_offset = 1; // Move to tomorrow
+                            $posts_scheduled_for_current_day = 0;
+                            // Recalculate target for tomorrow
+                            $target_timestamp = $this->get_next_valid_day($current_day_offset, $days_active, $can_schedule_today);
+                            $target_date = wp_date('Y-m-d', $target_timestamp);
+                            $day_start_time = $start_time; // Reset to original start time for tomorrow
+                            $posts_to_generate = $posts_per_day;
+                            error_log("KSM DEBUG - Moved to tomorrow: $target_date");
+                        }
+                        
                         $day_start_time = sprintf('%d:%02d %s', 
                             $adjusted_hour > 12 ? $adjusted_hour - 12 : ($adjusted_hour == 0 ? 12 : $adjusted_hour),
                             $adjusted_minute,
                             $adjusted_hour >= 12 ? 'PM' : 'AM'
                         );
-                        error_log("KSM DEBUG - Adjusted start time for today: $day_start_time");
+                        
+                        $effective_start_time = $safe_start_time;
+                        error_log("KSM DEBUG - Adjusted start time for today with buffer: $day_start_time (minutes: $safe_start_time)");
                     }
                     
-                    $effective_start_time = max($current_time_minutes, $start_minutes);
                     $remaining_time_today = $end_minutes - $effective_start_time;
+                    
+                    // Ensure we have enough time for at least one post
+                    if ($remaining_time_today < $min_interval) {
+                        error_log("KSM DEBUG - Not enough time remaining today ($remaining_time_today minutes), moving to next day");
+                        $can_schedule_today = false;
+                        $current_day_offset = 1; // Move to tomorrow
+                        $posts_scheduled_for_current_day = 0;
+                        // Recalculate target for tomorrow
+                        $target_timestamp = $this->get_next_valid_day($current_day_offset, $days_active, $can_schedule_today);
+                        $target_date = wp_date('Y-m-d', $target_timestamp);
+                        $day_start_time = $start_time; // Reset to original start time for tomorrow
+                        $posts_to_generate = $posts_per_day;
+                        error_log("KSM DEBUG - Moved to tomorrow due to insufficient time: $target_date");
+                    }
+                    
                     $posts_to_generate = min($posts_per_day, floor($remaining_time_today / $min_interval) + 1);
                     error_log("KSM DEBUG - Today can fit $posts_to_generate posts (remaining time: $remaining_time_today minutes)");
                 }
@@ -964,16 +1009,7 @@ class KSM_PS_Main {
             }
             
             $scheduled_timestamp = $scheduled_datetime->getTimestamp();
-            error_log("KSM DEBUG - Parsed timestamp: $scheduled_timestamp");
-            
-            // CRITICAL SAFETY CHECK: Ensure we're scheduling in the future
-            if ($scheduled_timestamp <= $current_wp_timestamp) {
-                error_log("KSM DEBUG - CRITICAL ERROR: Calculated time is in the past!");
-                error_log("KSM DEBUG - Scheduled timestamp: $scheduled_timestamp (" . wp_date('Y-m-d H:i:s', $scheduled_timestamp) . ")");
-                error_log("KSM DEBUG - Current timestamp: $current_wp_timestamp (" . wp_date('Y-m-d H:i:s', $current_wp_timestamp) . ")");
-                error_log("KSM DEBUG - Difference: " . ($scheduled_timestamp - $current_wp_timestamp) . " seconds");
-                continue;
-            }
+            error_log("KSM DEBUG - Parsed timestamp: $scheduled_timestamp (" . wp_date('Y-m-d H:i:s', $scheduled_timestamp) . ")");
             
             // Convert to MySQL format for WordPress
             $scheduled_time_mysql = $scheduled_datetime->format('Y-m-d H:i:s');
@@ -986,34 +1022,30 @@ class KSM_PS_Main {
             error_log("KSM DEBUG - Current WP timestamp: $current_wp_timestamp");
             error_log("KSM DEBUG - Time difference: " . ($scheduled_timestamp - $current_wp_timestamp) . " seconds in future");
             
-            // ROBUST SCHEDULING: Use direct database update to bypass WordPress hooks that might interfere
-            global $wpdb;
-            
-            error_log("KSM DEBUG - Using direct database update to bypass potential conflicts");
+            // PROPER WORDPRESS SCHEDULING: Use WordPress functions with proper future timestamps
+            error_log("KSM DEBUG - Using WordPress functions for proper post scheduling");
             error_log("KSM DEBUG - Scheduling data: ID={$post->ID}, status=future, date=$scheduled_time_mysql, date_gmt=$scheduled_time_gmt");
             
-            // First, update the post status and dates directly in the database
-            $update_result = $wpdb->update(
-                $wpdb->posts,
-                array(
-                    'post_status' => 'future',
-                    'post_date' => $scheduled_time_mysql,
-                    'post_date_gmt' => $scheduled_time_gmt,
-                    'post_modified' => current_time('mysql'),
-                    'post_modified_gmt' => current_time('mysql', 1)
-                ),
-                array('ID' => $post->ID),
-                array('%s', '%s', '%s', '%s', '%s'),
-                array('%d')
+            // Use wp_update_post with proper future timestamps (no hook workarounds needed)
+            $post_data = array(
+                'ID' => $post->ID,
+                'post_status' => 'future',
+                'post_date' => $scheduled_time_mysql,
+                'post_date_gmt' => $scheduled_time_gmt,
+                'edit_date' => true // This tells WordPress we're explicitly setting the date
             );
             
-            if ($update_result === false) {
-                error_log("KSM DEBUG - ERROR: Database update failed for post {$post->ID}");
+            $update_result = wp_update_post($post_data, true);
+            
+            if (is_wp_error($update_result)) {
+                error_log("KSM DEBUG - ERROR: wp_update_post failed for post {$post->ID}: " . $update_result->get_error_message());
                 continue;
             }
             
-            // Clear post cache to ensure WordPress recognizes the changes
-            clean_post_cache($post->ID);
+            if ($update_result === 0) {
+                error_log("KSM DEBUG - ERROR: wp_update_post returned 0 for post {$post->ID}");
+                continue;
+            }
             
             // Schedule the actual publication using WordPress cron
             $publish_hook = 'ksm_ps_publish_post_' . $post->ID;
@@ -1042,7 +1074,9 @@ class KSM_PS_Main {
         
         $message = "Successfully scheduled $scheduled_count posts.";
         if (!$is_cron_run) {
-            $message .= " (Manual testing)";
+            $message .= " (Manual scheduling - daily limits bypassed)";
+        } else {
+            $message .= " (Automatic scheduling - daily limits applied)";
         }
         error_log("KSM DEBUG - Final result: $message");
         

@@ -206,30 +206,114 @@ if (!defined('ABSPATH')) {
         
         <!-- Status Sidebar -->
         <div class="ksm-ps-sidebar">
-            <div class="ksm-ps-status-box">
-                <h3><?php _e('Current Status', 'ksm-post-scheduler'); ?></h3>
+            <!-- Unified Scheduling Overview -->
+            <div class="ksm-ps-overview-box">
+                <h3><?php _e('Scheduling Overview', 'ksm-post-scheduler'); ?></h3>
                 
-                <div class="ksm-ps-status-item">
-                    <strong><?php _e('Scheduler Status:', 'ksm-post-scheduler'); ?></strong>
-                    <span class="ksm-ps-status-indicator <?php echo ($options['enabled'] ?? false) ? 'enabled' : 'disabled'; ?>">
-                        <?php echo ($options['enabled'] ?? false) ? __('Enabled', 'ksm-post-scheduler') : __('Disabled', 'ksm-post-scheduler'); ?>
-                    </span>
+                <?php if (!empty($scheduling_preview['warnings'])): ?>
+                    <div class="ksm-ps-warnings">
+                        <?php foreach ($scheduling_preview['warnings'] as $warning): ?>
+                            <div class="ksm-ps-warning"><?php echo esc_html($warning); ?></div>
+                        <?php endforeach; ?>
+                    </div>
+                <?php endif; ?>
+                
+                <!-- Status & Timing Section -->
+                <div class="ksm-ps-overview-section">
+                    <div class="ksm-ps-overview-item">
+                        <strong><?php _e('Scheduler Status:', 'ksm-post-scheduler'); ?></strong>
+                        <span class="ksm-ps-status-indicator <?php echo ($options['enabled'] ?? false) ? 'enabled' : 'disabled'; ?>">
+                            <?php echo ($options['enabled'] ?? false) ? __('Enabled', 'ksm-post-scheduler') : __('Disabled', 'ksm-post-scheduler'); ?>
+                        </span>
+                    </div>
+                    
+                    <div class="ksm-ps-overview-item">
+                        <strong><?php _e('Last Cron Run:', 'ksm-post-scheduler'); ?></strong>
+                        <span class="ksm-ps-time">
+                            <?php
+                            $last_run = $options['last_cron_run'] ?? null;
+                            if ($last_run) {
+                                echo esc_html(wp_date(get_option('date_format') . ' ' . get_option('time_format'), strtotime($last_run)));
+                            } else {
+                                echo '<em>' . __('Never', 'ksm-post-scheduler') . '</em>';
+                            }
+                            ?>
+                        </span>
+                    </div>
+                    
+                    <div class="ksm-ps-overview-item">
+                        <strong><?php _e('Next Cron Run:', 'ksm-post-scheduler'); ?></strong>
+                        <span class="ksm-ps-time">
+                            <?php
+                            $next_cron = wp_next_scheduled('ksm_ps_daily_cron');
+                            if ($next_cron) {
+                                echo esc_html(wp_date(get_option('date_format') . ' ' . get_option('time_format'), $next_cron));
+                            } else {
+                                echo '<em>' . __('Not scheduled', 'ksm-post-scheduler') . '</em>';
+                            }
+                            ?>
+                        </span>
+                    </div>
                 </div>
                 
-                <div class="ksm-ps-status-item">
-                    <strong><?php _e('Posts in Monitored Status:', 'ksm-post-scheduler'); ?></strong>
-                    <span class="ksm-ps-count"><?php echo esc_html($monitored_count); ?></span>
+                <!-- Visual Separator -->
+                <hr class="ksm-ps-section-divider">
+                
+                <!-- Queue & Configuration Section -->
+                <div class="ksm-ps-overview-section">
+                    <div class="ksm-ps-overview-item">
+                        <strong><?php _e('Posts waiting to be scheduled:', 'ksm-post-scheduler'); ?></strong>
+                        <span class="ksm-ps-count"><?php echo esc_html($scheduling_preview['posts_waiting']); ?> <?php _e('posts', 'ksm-post-scheduler'); ?></span>
+                    </div>
+                    
+                    <div class="ksm-ps-overview-item">
+                        <strong><?php _e('Posts per day limit:', 'ksm-post-scheduler'); ?></strong>
+                        <span><?php echo esc_html($scheduling_preview['posts_per_day']); ?> <?php _e('posts', 'ksm-post-scheduler'); ?></span>
+                    </div>
+                    
+                    <div class="ksm-ps-overview-item">
+                        <strong><?php _e('Estimated days needed:', 'ksm-post-scheduler'); ?></strong>
+                        <span><?php echo esc_html($scheduling_preview['estimated_days']); ?> <?php _e('days', 'ksm-post-scheduler'); ?></span>
+                    </div>
+                    
+                    <div class="ksm-ps-overview-item">
+                        <strong><?php _e('Time window:', 'ksm-post-scheduler'); ?></strong>
+                        <span><?php echo esc_html($scheduling_preview['time_window']); ?></span>
+                    </div>
+                    
+                    <div class="ksm-ps-overview-item">
+                        <strong><?php _e('Minimum spacing:', 'ksm-post-scheduler'); ?></strong>
+                        <span><?php echo esc_html($scheduling_preview['min_interval']); ?> <?php _e('minutes', 'ksm-post-scheduler'); ?></span>
+                    </div>
+                    
+                    <div class="ksm-ps-overview-item">
+                        <strong><?php _e('Active days:', 'ksm-post-scheduler'); ?></strong>
+                        <span><?php echo esc_html($scheduling_preview['active_days']); ?></span>
+                    </div>
                 </div>
                 
-                <div class="ksm-ps-status-item">
-                    <strong><?php _e('Next Cron Run:', 'ksm-post-scheduler'); ?></strong>
-                    <span class="ksm-ps-time">
-                        <?php
-                        $next_cron = wp_next_scheduled('ksm_ps_daily_cron');
-                        echo $next_cron ? esc_html(date('Y-m-d H:i:s', $next_cron)) : __('Not scheduled', 'ksm-post-scheduler');
-                        ?>
-                    </span>
-                </div>
+                <!-- Visual Separator -->
+                <hr class="ksm-ps-section-divider">
+                
+                <!-- Schedule Preview Section -->
+                <?php if (!empty($scheduling_preview['daily_preview'])): ?>
+                    <div class="ksm-ps-overview-section">
+                        <h4 class="ksm-ps-section-title"><?php _e('5-Day Scheduling Preview:', 'ksm-post-scheduler'); ?></h4>
+                        <div class="ksm-ps-daily-preview">
+                            <?php foreach ($scheduling_preview['daily_preview'] as $day_info): ?>
+                                <div class="ksm-ps-day-preview">
+                                    <strong><?php echo esc_html($day_info['day']); ?>:</strong>
+                                    <span>
+                                        <?php echo esc_html($day_info['posts_count']); ?> <?php _e('posts', 'ksm-post-scheduler'); ?>
+                                        <?php if (!empty($day_info['time_window'])): ?>
+                                            (<?php echo esc_html($day_info['time_window']); ?>)
+                                        <?php endif; ?>
+                                    </span>
+                                </div>
+                            <?php endforeach; ?>
+                        </div>
+                    </div>
+                <?php endif; ?>
             </div>
             
             <?php if (!empty($upcoming_posts)): ?>

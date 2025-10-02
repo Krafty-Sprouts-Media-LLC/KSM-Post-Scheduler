@@ -2,7 +2,20 @@
 
 All notable changes to the KSM Post Scheduler plugin will be documented in this file.
 
-## [1.6.1] - 02/10/2025
+## [1.6.2] - 02/10/2025
+
+### Fixed
+- **Root Cause Fix for Past Timestamps**: Fixed the core issue where `generate_random_times()` was using the original start time instead of the adjusted start time for current day scheduling, which was causing past-dated articles
+- **Improved Time Calculation Logic**: Enhanced timestamp calculation to properly handle current day scheduling with a 5-minute buffer to guarantee future scheduling
+- **Removed WordPress Hook Workaround**: Eliminated the temporary `transition_post_status` hook disabling since the root cause has been resolved
+- **Better Edge Case Handling**: Improved logic for handling time calculations that would go past midnight or when insufficient time remains for scheduling
+
+### Technical Improvements
+- Replaced direct database updates with proper WordPress `wp_update_post()` function calls
+- Enhanced debugging messages to clearly differentiate between manual and automatic scheduling modes
+- Streamlined code by removing unnecessary safety checks that were compensating for the timestamp bug
+
+## [1.6.1] - 01/10/2025
 
 ### Critical Fix
 - **IMMEDIATE PUBLISHING BUG**: Fixed critical issue where draft posts were being published immediately instead of being scheduled for future dates

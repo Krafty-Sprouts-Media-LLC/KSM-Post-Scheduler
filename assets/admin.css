@@ -127,7 +127,8 @@
 
 /* Status Boxes */
 .ksm-ps-status-box,
-.ksm-ps-upcoming-box {
+.ksm-ps-upcoming-box,
+.ksm-ps-overview-box {
     background: #fff;
     border: 1px solid #ccd0d4;
     border-radius: 4px;
@@ -137,11 +138,47 @@
 }
 
 .ksm-ps-status-box h3,
-.ksm-ps-upcoming-box h3 {
+.ksm-ps-upcoming-box h3,
+.ksm-ps-overview-box h3 {
     margin-top: 0;
     margin-bottom: 15px;
     color: #23282d;
     font-size: 16px;
+    font-weight: 600;
+}
+
+/* Unified Overview Box Styles */
+.ksm-ps-overview-section {
+    margin-bottom: 15px;
+}
+
+.ksm-ps-overview-section:last-child {
+    margin-bottom: 0;
+}
+
+.ksm-ps-overview-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+    padding-bottom: 6px;
+}
+
+.ksm-ps-overview-item:last-child {
+    margin-bottom: 0;
+}
+
+.ksm-ps-section-divider {
+    border: none;
+    border-top: 1px solid #e5e5e5;
+    margin: 15px 0;
+    background: none;
+}
+
+.ksm-ps-section-title {
+    margin: 0 0 10px 0;
+    color: #23282d;
+    font-size: 14px;
     font-weight: 600;
 }
 
@@ -198,6 +235,78 @@
     overflow-y: auto;
 }
 
+/* Scheduling Configuration Styles */
+.ksm-ps-scheduling-info {
+    margin-top: 15px;
+    padding-top: 15px;
+    border-top: 1px solid #f0f0f1;
+}
+
+.ksm-ps-scheduling-info h4 {
+    margin: 0 0 10px 0;
+    color: #23282d;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.ksm-ps-config-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-bottom: 15px;
+}
+
+.ksm-ps-config-item {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.ksm-ps-config-item strong {
+    font-size: 12px;
+    color: #646970;
+    font-weight: 600;
+}
+
+.ksm-ps-config-item span {
+    font-size: 13px;
+    color: #23282d;
+}
+
+.ksm-ps-scheduling-preview {
+    background-color: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 4px;
+    padding: 12px;
+    margin-top: 10px;
+}
+
+.ksm-ps-scheduling-preview h4 {
+    margin: 0 0 8px 0;
+    color: #495057;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.ksm-ps-preview-text {
+    margin: 0 0 8px 0;
+    font-size: 12px;
+    color: #6c757d;
+    line-height: 1.4;
+}
+
+.ksm-ps-today-status {
+    background-color: #e3f2fd;
+    border: 1px solid #bbdefb;
+    border-radius: 3px;
+    padding: 8px;
+    font-size: 12px;
+    color: #1565c0;
+}
+
+.ksm-ps-today-status strong {
+    color: #0d47a1;
+}
 .ksm-ps-upcoming-item {
     padding: 10px;
     margin-bottom: 8px;
@@ -477,4 +586,104 @@
 
 .notice.ksm-ps-notice p {
     margin: 0.5em 0;
+}
+
+/* Scheduling Preview */
+.ksm-ps-scheduling-preview {
+    background: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    padding: 20px;
+    margin: 20px 0;
+}
+
+.ksm-ps-scheduling-preview h3 {
+    margin: 0 0 15px 0;
+    color: #2c3e50;
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.ksm-ps-scheduling-preview h4 {
+    margin: 15px 0 10px 0;
+    color: #34495e;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.ksm-ps-warnings {
+    margin-bottom: 15px;
+}
+
+.ksm-ps-warning {
+    background: #fff3cd;
+    border: 1px solid #ffeaa7;
+    border-radius: 4px;
+    padding: 10px;
+    margin-bottom: 8px;
+    color: #856404;
+    font-size: 13px;
+}
+
+.ksm-ps-warning:before {
+    content: "⚠️ ";
+    margin-right: 5px;
+}
+
+.ksm-ps-preview-summary {
+    margin-bottom: 15px;
+}
+
+.ksm-ps-preview-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 0;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.ksm-ps-preview-item:last-child {
+    border-bottom: none;
+}
+
+.ksm-ps-preview-item strong {
+    color: #495057;
+    font-size: 13px;
+}
+
+.ksm-ps-preview-item span {
+    color: #2c3e50;
+    font-weight: 500;
+    font-size: 13px;
+}
+
+.ksm-ps-daily-preview {
+    background: white;
+    border: 1px solid #e9ecef;
+    border-radius: 6px;
+    padding: 15px;
+    margin-top: 15px;
+}
+
+.ksm-ps-day-preview {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 0;
+    border-bottom: 1px solid #f1f3f4;
+    font-size: 13px;
+}
+
+.ksm-ps-day-preview:last-child {
+    border-bottom: none;
+}
+
+.ksm-ps-day-preview strong {
+    color: #495057;
+    min-width: 80px;
+}
+
+.ksm-ps-day-preview span {
+    color: #6c757d;
+    text-align: right;
 }

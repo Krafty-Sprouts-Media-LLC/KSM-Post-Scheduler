@@ -136,8 +136,77 @@
          * Update status display with new data
          */
         updateStatusDisplay: function(data) {
-            // Update monitored posts count
-            $('.ksm-ps-count').text(data.monitored_count);
+            // Update scheduler status indicator
+            var $statusIndicator = $('.ksm-ps-status-indicator');
+            if (data.options && data.options.enabled) {
+                $statusIndicator.removeClass('disabled').addClass('enabled').text('Enabled');
+            } else {
+                $statusIndicator.removeClass('enabled').addClass('disabled').text('Disabled');
+            }
+            
+            // Update posts waiting count
+            $('.ksm-ps-count').text(data.scheduling_preview.posts_waiting + ' posts');
+            
+            // Update last cron run
+            var lastRunText = 'Never';
+            if (data.last_cron_run) {
+                var lastRunDate = new Date(data.last_cron_run);
+                lastRunText = lastRunDate.toLocaleDateString() + ' ' + lastRunDate.toLocaleTimeString();
+            }
+            $('.ksm-ps-time').first().html(data.last_cron_run ? lastRunText : '<em>Never</em>');
+            
+            // Update next cron run
+            var nextRunText = 'Not scheduled';
+            if (data.next_cron_run) {
+                var nextRunDate = new Date(data.next_cron_run * 1000); // Convert from Unix timestamp
+                nextRunText = nextRunDate.toLocaleDateString() + ' ' + nextRunDate.toLocaleTimeString();
+            }
+            $('.ksm-ps-time').last().html(data.next_cron_run ? nextRunText : '<em>Not scheduled</em>');
+            
+            // Update scheduling preview data if available
+            if (data.scheduling_preview) {
+                var preview = data.scheduling_preview;
+                
+                // Update all overview items with new data
+                $('.ksm-ps-overview-item').each(function() {
+                    var $item = $(this);
+                    var $label = $item.find('strong');
+                    var $value = $item.find('span').last();
+                    
+                    var labelText = $label.text();
+                    
+                    if (labelText.includes('Posts per day limit')) {
+                        $value.text(preview.posts_per_day + ' posts');
+                    } else if (labelText.includes('Estimated days needed')) {
+                        $value.text(preview.estimated_days + ' days');
+                    } else if (labelText.includes('Time window')) {
+                        $value.text(preview.time_window);
+                    } else if (labelText.includes('Minimum spacing')) {
+                        $value.text(preview.min_interval + ' minutes');
+                    } else if (labelText.includes('Active days')) {
+                        $value.text(preview.active_days);
+                    }
+                });
+                
+                // Update daily preview if available
+                if (preview.daily_preview && preview.daily_preview.length > 0) {
+                    var $dailyPreview = $('.ksm-ps-daily-preview');
+                    var dailyHtml = '';
+                    
+                    $.each(preview.daily_preview, function(index, dayInfo) {
+                        dailyHtml += '<div class="ksm-ps-day-preview">';
+                        dailyHtml += '<strong>' + KSM_PS_Admin.escapeHtml(dayInfo.day) + ':</strong>';
+                        dailyHtml += '<span>' + dayInfo.posts_count + ' posts';
+                        if (dayInfo.time_window) {
+                            dailyHtml += ' (' + KSM_PS_Admin.escapeHtml(dayInfo.time_window) + ')';
+                        }
+                        dailyHtml += '</span>';
+                        dailyHtml += '</div>';
+                    });
+                    
+                    $dailyPreview.html(dailyHtml);
+                }
+            }
             
             // Update upcoming posts
             var $upcomingBox = $('.ksm-ps-upcoming-box');
