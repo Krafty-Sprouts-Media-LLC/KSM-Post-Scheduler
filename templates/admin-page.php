@@ -193,12 +193,12 @@ if (!defined('ABSPATH')) {
                 <?php submit_button(); ?>
             </form>
             
-            <!-- Manual Run Section -->
+            <!-- Manual Scheduling Section -->
             <div class="ksm-ps-manual-run">
-                <h2><?php _e('Manual Testing', 'ksm-post-scheduler'); ?></h2>
-                <p><?php _e('Use this button to manually run the scheduler for testing purposes.', 'ksm-post-scheduler'); ?></p>
-                <button type="button" id="ksm-ps-run-now" class="button button-secondary">
-                    <?php _e('Run Now', 'ksm-post-scheduler'); ?>
+                <h2><?php _e('Manual Scheduling', 'ksm-post-scheduler'); ?></h2>
+                <p><?php _e('Use this button to manually run the scheduler and schedule all pending draft posts immediately.', 'ksm-post-scheduler'); ?></p>
+                <button type="button" id="ksm-ps-run-now" class="button button-primary">
+                    <?php _e('Schedule Posts Now', 'ksm-post-scheduler'); ?>
                 </button>
                 <div id="ksm-ps-run-result" class="ksm-ps-result"></div>
             </div>

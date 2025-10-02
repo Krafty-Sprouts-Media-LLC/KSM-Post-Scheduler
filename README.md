@@ -12,7 +12,7 @@ KSM Post Scheduler helps you maintain a consistent posting schedule by automatic
 - **Customizable Schedule**: Set daily post limits, time ranges, and active days
 - **Random Timing**: Posts are scheduled at random times to create natural posting patterns
 - **Minimum Intervals**: Ensure posts don't publish too close together
-- **Manual Testing**: Run the scheduler manually for testing purposes
+- **Manual Scheduling**: Run the scheduler manually to schedule posts immediately
 - **Status Dashboard**: View current statistics and upcoming scheduled posts
 - **WordPress Cron Integration**: Uses WordPress's built-in cron system
 - **Security First**: Includes proper nonces, sanitization, and capability checks
@@ -59,12 +59,12 @@ The settings page includes a status dashboard showing:
 5. **Interval Respect**: Ensures posts are scheduled with the minimum interval between them
 6. **Status Update**: Changes post status to 'future' with the calculated publish time
 
-## Manual Testing
+## Manual Scheduling
 
-Use the "Run Now" button on the settings page to manually execute the scheduler for testing purposes. This allows you to:
-- Test your configuration
-- See how posts will be scheduled
-- Verify timing and intervals work as expected
+Use the "Schedule Posts Now" button on the settings page to manually execute the scheduler and schedule all pending draft posts immediately. This allows you to:
+- Schedule all draft posts without waiting for the automatic cron
+- See detailed progress reports of the scheduling process
+- Verify your configuration and timing settings work as expected
 
 ## Requirements
 

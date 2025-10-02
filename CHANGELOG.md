@@ -2,6 +2,19 @@
 
 All notable changes to the KSM Post Scheduler plugin will be documented in this file.
 
+## [1.6.4] - 02/10/2025
+
+### Changed
+- **UI Terminology Update**: Changed "Manual Testing" to "Manual Scheduling" throughout the interface
+- **Button Text Update**: Changed "Run Now" button to "Schedule Posts Now" for clearer functionality indication
+- **Documentation Update**: Updated README.md to reflect manual scheduling functionality instead of testing terminology
+- **Code Comments**: Updated all internal comments to use "manual scheduling" terminology for consistency
+
+### Technical Improvements
+- Updated admin page template with proper button styling (changed from secondary to primary button)
+- Enhanced button description to clearly indicate immediate post scheduling functionality
+- Improved code documentation consistency across PHP files
+
 ## [1.6.3] - 02/10/2025
 
 ### Added

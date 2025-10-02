@@ -3,7 +3,7 @@
  * Plugin Name: KSM Post Scheduler
  * Plugin URI: https://kraftysprouts.com
  * Description: Automatically schedules posts from a specific status to publish at random times
- * Version: 1.6.3
+ * Version: 1.6.4
  * Author: Krafty Sprouts Media, LLC
  * Author URI: https://kraftysprouts.com
  * License: GPL v2 or later
@@ -16,7 +16,7 @@
  * Network: false
  * 
  * @package KSM_Post_Scheduler
- * @version 1.6.3
+ * @version 1.6.4
  * @author KraftySpoutsMedia, LLC
  * @copyright 2025 KraftySpouts
  * @license GPL-2.0-or-later
@@ -752,7 +752,7 @@ class KSM_PS_Main {
     /**
      * Schedule posts function
      * 
-     * @param bool $is_cron_run Whether this is being called from cron (true) or manual testing (false)
+     * @param bool $is_cron_run Whether this is being called from cron (true) or manual scheduling (false)
      * @return array Result array with success status and message
      * @since 1.0.0
      */
@@ -760,7 +760,7 @@ class KSM_PS_Main {
         $options = get_option($this->option_name, array());
         $posts_per_day = $options['posts_per_day'] ?? 5;
         
-        // For manual testing, limit to current day's posts only
+        // For manual scheduling, limit to current day's posts only
         // For cron runs, schedule up to 7 days worth
         $max_posts_to_schedule = $is_cron_run ? ($posts_per_day * 7) : $posts_per_day;
         
@@ -883,7 +883,7 @@ class KSM_PS_Main {
             error_log("KSM DEBUG - Cannot schedule posts today - not an active day ($today_name)");
         }
         
-        // For manual testing, if we can't schedule today, return an error
+        // For manual scheduling, if we can't schedule today, return an error
         if (!$is_cron_run && !$can_schedule_today) {
             return array('success' => false, 'message' => 'Cannot schedule posts today. Either it\'s not an active day or the scheduling window has passed.');
         }
@@ -1343,7 +1343,7 @@ class KSM_PS_Main {
             wp_die(__('You do not have sufficient permissions.', 'ksm-post-scheduler'));
         }
         
-        $result = $this->schedule_posts(false); // Pass false to indicate manual testing
+        $result = $this->schedule_posts(false); // Pass false to indicate manual scheduling
         wp_send_json($result);
     }
     
