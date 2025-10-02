@@ -210,41 +210,7 @@
                 }
             }
             
-            // Update upcoming posts
-            var $upcomingBox = $('.ksm-ps-upcoming-box');
-            var $upcomingList = $('.ksm-ps-upcoming-list');
-            
-            if (data.upcoming_posts && data.upcoming_posts.length > 0) {
-                var html = '';
-                $.each(data.upcoming_posts, function(index, post) {
-                    var date = new Date(post.scheduled_time);
-                    var formattedDate = date.toLocaleDateString('en-US', {
-                        month: 'short',
-                        day: 'numeric',
-                        year: 'numeric'
-                    }) + ' at ' + date.toLocaleTimeString('en-US', {
-                        hour: 'numeric',
-                        minute: '2-digit',
-                        hour12: true
-                    });
-                    
-                    html += '<div class="ksm-ps-upcoming-item">';
-                    html += '<div class="ksm-ps-post-title">' + KSM_PS_Admin.escapeHtml(post.title) + '</div>';
-                    html += '<div class="ksm-ps-post-time">' + formattedDate + '</div>';
-                    html += '</div>';
-                });
-                
-                $upcomingList.html(html);
-                $('.ksm-ps-no-posts').hide();
-                $upcomingList.show();
-            } else {
-                $upcomingList.hide();
-                if ($('.ksm-ps-no-posts').length === 0) {
-                    $upcomingBox.append('<p class="ksm-ps-no-posts">No posts currently scheduled.</p>');
-                } else {
-                    $('.ksm-ps-no-posts').show();
-                }
-            }
+
         },
         
         /**

@@ -3,7 +3,7 @@
  * Plugin Name: KSM Post Scheduler
  * Plugin URI: https://kraftysprouts.com
  * Description: Automatically schedules posts from a specific status to publish at random times
- * Version: 1.8.3
+ * Version: 1.8.6
  * Author: Krafty Sprouts Media, LLC
  * Author URI: https://kraftysprouts.com
  * License: GPL v2 or later
@@ -38,7 +38,7 @@ if (!defined('ABSPATH')) {
 }
 
 // Define plugin constants
-define('KSM_PS_VERSION', '1.8.3');
+define('KSM_PS_VERSION', '1.8.6');
 define('KSM_PS_PLUGIN_FILE', __FILE__);
 define('KSM_PS_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('KSM_PS_PLUGIN_URL', plugin_dir_url(__FILE__));
@@ -285,6 +285,76 @@ class KSM_PS_Main {
             ),
             'post_type'                 => array('post'),
         ));
+        
+        // Add hooks to make the status available in post edit screens
+        add_action('admin_footer-post.php', array($this, 'add_custom_status_to_edit_screen'));
+        add_action('admin_footer-post-new.php', array($this, 'add_custom_status_to_edit_screen'));
+    }
+    
+    /**
+     * Add custom post status to the post edit screen dropdown
+     * 
+     * @since 1.8.6
+     */
+    public function add_custom_status_to_edit_screen() {
+        global $post;
+        
+        // Only add to post edit screens
+        if (!$post || $post->post_type !== 'post') {
+            return;
+        }
+        
+        ?>
+        <script type="text/javascript">
+        jQuery(document).ready(function($) {
+            // Add "Ready to Schedule" option to the status dropdown
+            var statusSelect = $('#post_status');
+            if (statusSelect.length > 0) {
+                // Check if our option already exists
+                if (statusSelect.find('option[value="ksm_scheduled"]').length === 0) {
+                    statusSelect.append('<option value="ksm_scheduled"><?php echo esc_js(__('Ready to Schedule', 'ksm-post-scheduler')); ?></option>');
+                }
+            }
+            
+            // Also add to the status display area
+            var statusDisplay = $('#post-status-display');
+            if (statusDisplay.length > 0 && '<?php echo esc_js($post->post_status); ?>' === 'ksm_scheduled') {
+                statusDisplay.text('<?php echo esc_js(__('Ready to Schedule', 'ksm-post-scheduler')); ?>');
+            }
+            
+            // Handle status change to show proper text
+            statusSelect.on('change', function() {
+                var selectedStatus = $(this).val();
+                var statusText = '';
+                
+                switch(selectedStatus) {
+                    case 'draft':
+                        statusText = '<?php echo esc_js(__('Draft', 'ksm-post-scheduler')); ?>';
+                        break;
+                    case 'pending':
+                        statusText = '<?php echo esc_js(__('Pending Review', 'ksm-post-scheduler')); ?>';
+                        break;
+                    case 'ksm_scheduled':
+                        statusText = '<?php echo esc_js(__('Ready to Schedule', 'ksm-post-scheduler')); ?>';
+                        break;
+                    case 'future':
+                        statusText = '<?php echo esc_js(__('Scheduled', 'ksm-post-scheduler')); ?>';
+                        break;
+                    case 'publish':
+                        statusText = '<?php echo esc_js(__('Published', 'ksm-post-scheduler')); ?>';
+                        break;
+                    default:
+                        statusText = selectedStatus;
+                }
+                
+                // Update the status display when OK button is clicked
+                $('#save-post-status').on('click', function() {
+                    statusDisplay.text(statusText);
+                });
+            });
+        });
+        </script>
+        <?php
     }
     
     /**
@@ -657,7 +727,6 @@ class KSM_PS_Main {
         
         // Get current status
         $monitored_count = $this->get_monitored_posts_count();
-        $upcoming_posts = $this->get_upcoming_scheduled_posts();
         $scheduling_preview = $this->get_scheduling_preview();
         
         include KSM_PS_PLUGIN_DIR . 'templates/admin-page.php';
@@ -682,31 +751,7 @@ class KSM_PS_Main {
         return count($posts);
     }
     
-    /**
-     * Get upcoming scheduled posts
-     * 
-     * @return array Array of scheduled posts
-     * @since 1.0.0
-     */
-    private function get_upcoming_scheduled_posts() {
-        $posts = get_posts(array(
-            'post_status' => 'future',
-            'numberposts' => 10,
-            'post_type' => 'post',
-            'orderby' => 'date',
-            'order' => 'ASC'
-        ));
-        
-        $upcoming = array();
-        foreach ($posts as $post) {
-            $upcoming[] = array(
-                'title' => $post->post_title,
-                'scheduled_time' => get_the_date('Y-m-d H:i:s', $post->ID)
-            );
-        }
-        
-        return $upcoming;
-    }
+
     
     /**
      * Daily cron job function
@@ -1038,13 +1083,14 @@ class KSM_PS_Main {
             // Generate times for this day if not already done
             if (!isset($daily_schedules[$target_date])) {
                 $day_start_time = $start_time;
-                $posts_to_generate = $posts_per_day;
+                
+                // CRITICAL FIX: Calculate actual posts needed for this day
+                $remaining_posts = $total_posts_to_schedule - $index;
+                $posts_to_generate = min($posts_per_day, $remaining_posts);
                 
                 // Add progress report for manual runs - new day started
                 if (!$is_cron_run) {
-                    $remaining_posts = $total_posts_to_schedule - $index;
-                    $posts_for_this_day = min($posts_per_day, $remaining_posts);
-                    $progress_report[] = "📅 " . wp_date('l, M j', $target_timestamp) . " - Can schedule {$posts_for_this_day} posts today";
+                    $progress_report[] = "📅 " . wp_date('l, M j', $target_timestamp) . " - Can schedule {$posts_to_generate} posts today";
                 }
                 
                 // For today, adjust start time and calculate available slots
@@ -1069,7 +1115,9 @@ class KSM_PS_Main {
                             $target_timestamp = $this->get_next_valid_day($current_day_offset, $days_active, $can_schedule_today);
                             $target_date = wp_date('Y-m-d', $target_timestamp);
                             $day_start_time = $start_time; // Reset to original start time for tomorrow
-                            $posts_to_generate = $posts_per_day;
+                            // Recalculate posts needed for the new day
+                            $remaining_posts = $total_posts_to_schedule - $index;
+                            $posts_to_generate = min($posts_per_day, $remaining_posts);
                         }
                         
                         $day_start_time = sprintf('%d:%02d %s', 
@@ -1092,7 +1140,9 @@ class KSM_PS_Main {
                         $target_timestamp = $this->get_next_valid_day($current_day_offset, $days_active, $can_schedule_today);
                         $target_date = wp_date('Y-m-d', $target_timestamp);
                         $day_start_time = $start_time; // Reset to original start time for tomorrow
-                        $posts_to_generate = $posts_per_day;
+                        // Recalculate posts needed for the new day
+                        $remaining_posts = $total_posts_to_schedule - $index;
+                        $posts_to_generate = min($posts_per_day, $remaining_posts);
                     }
                     
                     $posts_to_generate = min($posts_per_day, floor($remaining_time_today / $min_interval) + 1);
@@ -1267,7 +1317,7 @@ class KSM_PS_Main {
                     }
                     
                     $scheduled_posts_details[] = array(
-                        'post_number' => $scheduled_count,
+                        'post_number' => 0, // Will be assigned sequentially after sorting
                         'title' => $post_title,
                         'time_str' => $scheduled_time_str,
                         'timestamp' => $scheduled_timestamp,
@@ -1308,6 +1358,11 @@ class KSM_PS_Main {
                 usort($scheduled_posts_details, function($a, $b) {
                     return $a['timestamp'] - $b['timestamp'];
                 });
+                
+                // Assign sequential post numbers after sorting
+                for ($i = 0; $i < count($scheduled_posts_details); $i++) {
+                    $scheduled_posts_details[$i]['post_number'] = $i + 1;
+                }
                 
                 // Group posts by date and build progress report
                 $grouped_posts = array();
@@ -1693,7 +1748,6 @@ class KSM_PS_Main {
             
             $data = array(
                 'monitored_count' => $this->get_monitored_posts_count(),
-                'upcoming_posts' => $this->get_upcoming_scheduled_posts(),
                 'options' => $options,
                 'scheduling_preview' => $scheduling_preview,
                 'last_cron_run' => $options['last_cron_run'] ?? null,

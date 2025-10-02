@@ -2,6 +2,45 @@
 
 All notable changes to the KSM Post Scheduler plugin will be documented in this file.
 
+## [1.8.6] - 02/10/2025
+
+### Removed
+- **Upcoming Scheduled Posts Widget**: Removed the "Upcoming Scheduled Posts" widget from the admin interface as it was not displaying any posts and was not functioning properly
+- **Related Code Cleanup**: Removed `get_upcoming_scheduled_posts()` function, associated CSS styles, JavaScript code, and template rendering logic
+- **Performance Improvement**: Eliminated unnecessary database queries and AJAX calls related to the removed widget
+
+### Technical Changes
+- Removed widget HTML template from `admin-page.php`
+- Removed widget update JavaScript from `admin.js`
+- Removed CSS styles for `.ksm-ps-upcoming-box`, `.ksm-ps-upcoming-list`, `.ksm-ps-upcoming-item`, and `.ksm-ps-no-posts`
+- Removed `upcoming_posts` data from AJAX responses and template variables
+
+## [1.8.5] - 02/10/2025
+
+### Fixed
+- **Complete Post Scheduling**: Fixed critical scheduling algorithm bug where the last few posts would be left unscheduled when the total number of posts wasn't evenly divisible by "Posts Per Day" setting
+- **Accurate Post Count Calculation**: Corrected `posts_to_generate` calculation to use `min(posts_per_day, remaining_posts)` instead of always using `posts_per_day`
+- **Progress Report Accuracy**: Updated progress report messages to reflect the actual number of posts being scheduled for each day
+
+### Technical Improvements
+- Modified scheduling loop to calculate remaining posts correctly for each day
+- Enhanced `generate_random_times()` function integration to handle variable post counts per day
+- Improved scheduling logic to ensure all posts get scheduled across available days
+
+### Example Fix
+- **Before**: 36 posts with 5 per day setting would schedule only 35 posts, leaving 1 unscheduled
+- **After**: All 36 posts are correctly scheduled across 8 days (7 days with 5 posts, 1 day with 1 post)
+
+## [1.8.4] - 02/10/2025
+
+### Fixed
+- **Post Numbering in Progress Report**: Fixed post numbering in scheduling progress report to display sequential numbers (1, 2, 3, 4, 5) in chronological order instead of random numbers based on processing order
+- **Chronological Display**: Posts are now numbered correctly based on their scheduled time order, with the earliest scheduled post being #1, second earliest being #2, and so on
+
+### Technical Improvements
+- Modified post numbering logic to assign sequential numbers after sorting posts by timestamp
+- Enhanced progress report generation to ensure consistent and logical post numbering
+
 ## [1.8.3] - 02/10/2025
 
 ### Improved

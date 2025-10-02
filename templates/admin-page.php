@@ -560,24 +560,7 @@ if (!defined('ABSPATH')) {
                 <?php endif; ?>
             </div>
             
-            <?php if (!empty($upcoming_posts)): ?>
-            <div class="ksm-ps-upcoming-box">
-                <h3><?php _e('Upcoming Scheduled Posts', 'ksm-post-scheduler'); ?></h3>
-                <div class="ksm-ps-upcoming-list">
-                    <?php foreach ($upcoming_posts as $post): ?>
-                        <div class="ksm-ps-upcoming-item">
-                            <div class="ksm-ps-post-title"><?php echo esc_html($post['title']); ?></div>
-                            <div class="ksm-ps-post-time"><?php echo esc_html(date('M j, Y \a\t g:i A', strtotime($post['scheduled_time']))); ?></div>
-                        </div>
-                    <?php endforeach; ?>
-                </div>
-            </div>
-            <?php else: ?>
-            <div class="ksm-ps-upcoming-box">
-                <h3><?php _e('Upcoming Scheduled Posts', 'ksm-post-scheduler'); ?></h3>
-                <p class="ksm-ps-no-posts"><?php _e('No posts currently scheduled.', 'ksm-post-scheduler'); ?></p>
-            </div>
-            <?php endif; ?>
+
             
             <!-- Refresh Status Button -->
             <button type="button" id="ksm-ps-refresh-status" class="button button-secondary">
