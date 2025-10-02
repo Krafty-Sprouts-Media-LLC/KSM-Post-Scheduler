@@ -78,7 +78,9 @@
                 },
                 success: function(response) {
                     if (response.success) {
-                        $result.addClass('success').text(response.message).show();
+                        // Format the response message with HTML for better readability
+                        var formattedMessage = KSM_PS_Admin.formatProgressReport(response.message);
+                        $result.addClass('success').html(formattedMessage).show();
                         // Refresh status after successful run
                         KSM_PS_Admin.refreshStatus();
                     } else {
@@ -642,6 +644,30 @@
             setTimeout(function() {
                 $btn.removeClass('applied');
             }, 2000);
+        },
+        
+        /**
+         * Format progress report for better display
+         */
+        formatProgressReport: function(message) {
+            // Convert line breaks to HTML breaks and add proper formatting
+            var formatted = this.escapeHtml(message);
+            
+            // Replace line breaks with HTML breaks
+            formatted = formatted.replace(/\n/g, '<br>');
+            
+            // Format progress report sections with better styling
+            formatted = formatted.replace(/📊 PROGRESS REPORT:/g, '<strong>📊 PROGRESS REPORT:</strong>');
+            formatted = formatted.replace(/Total posts to schedule: (\d+)/g, '<strong>Total posts to schedule: $1</strong>');
+            formatted = formatted.replace(/Successfully scheduled: (\d+)/g, '<strong style="color: #28a745;">Successfully scheduled: $1</strong>');
+            formatted = formatted.replace(/Day-by-day breakdown:/g, '<strong>Day-by-day breakdown:</strong>');
+            
+            // Format day entries
+            formatted = formatted.replace(/📅 ([^:]+): (\d+) posts? scheduled/g, '<div style="margin-left: 15px; margin-top: 5px;"><strong>📅 $1:</strong> <span style="color: #28a745;">$2 posts scheduled</span></div>');
+            formatted = formatted.replace(/⏭️ Moving to next day \(([^)]+)\)/g, '<div style="margin-left: 15px; margin-top: 5px; color: #6c757d;"><em>⏭️ Moving to next day ($1)</em></div>');
+            formatted = formatted.replace(/🎯 Starting ([^:]+): Can schedule (\d+) posts today/g, '<div style="margin-left: 15px; margin-top: 5px;"><strong>🎯 Starting $1:</strong> Can schedule $2 posts today</div>');
+            
+            return formatted;
         },
         
         /**

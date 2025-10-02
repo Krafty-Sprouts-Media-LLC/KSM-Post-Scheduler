@@ -2,6 +2,22 @@
 
 All notable changes to the KSM Post Scheduler plugin will be documented in this file.
 
+## [1.6.3] - 02/10/2025
+
+### Added
+- **Progress Reporting for Manual Scheduling**: Added detailed progress reports when using the "Run Now" button to show day-by-day post distribution
+- **Visual Feedback Enhancement**: Improved admin interface to display scheduling progress with formatted output showing:
+  - Total posts to schedule
+  - Successfully scheduled posts count
+  - Day-by-day breakdown with post counts
+  - Clear indication when moving to next day due to daily limits
+- **Enhanced User Experience**: Better visibility into how the plugin distributes posts across multiple days during manual scheduling
+
+### Technical Improvements
+- Added `formatProgressReport()` JavaScript function for better HTML formatting of progress messages
+- Enhanced CSS styling for progress report display with proper typography and color coding
+- Improved AJAX response handling to display formatted HTML instead of plain text
+
 ## [1.6.2] - 02/10/2025
 
 ### Fixed

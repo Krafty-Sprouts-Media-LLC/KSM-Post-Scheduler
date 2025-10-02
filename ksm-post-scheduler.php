@@ -3,7 +3,7 @@
  * Plugin Name: KSM Post Scheduler
  * Plugin URI: https://kraftysprouts.com
  * Description: Automatically schedules posts from a specific status to publish at random times
- * Version: 1.6.2
+ * Version: 1.6.3
  * Author: Krafty Sprouts Media, LLC
  * Author URI: https://kraftysprouts.com
  * License: GPL v2 or later
@@ -16,7 +16,7 @@
  * Network: false
  * 
  * @package KSM_Post_Scheduler
- * @version 1.6.1
+ * @version 1.6.3
  * @author KraftySpoutsMedia, LLC
  * @copyright 2025 KraftySpouts
  * @license GPL-2.0-or-later
@@ -783,6 +783,10 @@ class KSM_PS_Main {
         $min_interval = $options['min_interval'] ?? 30;
         $days_active = $options['days_active'] ?? array('monday', 'tuesday', 'wednesday', 'thursday', 'friday');
         
+        // Initialize progress tracking for manual runs
+        $progress_report = array();
+        $total_posts_to_schedule = count($posts);
+        
         // Convert start and end times to minutes for easier calculation
         $start_minutes = $this->time_to_minutes($start_time);
         $end_minutes = $this->time_to_minutes($end_time);
@@ -902,6 +906,11 @@ class KSM_PS_Main {
             if ($posts_scheduled_for_current_day >= $posts_per_day) {
                 error_log("KSM DEBUG - Daily limit reached ($posts_scheduled_for_current_day/$posts_per_day), moving to next day");
                 
+                // Add progress report for manual runs
+                if (!$is_cron_run && isset($target_date)) {
+                    $progress_report[] = "✓ Daily limit reached for " . wp_date('l, M j', strtotime($target_date)) . " - Moving to next day";
+                }
+                
                 // Move to next valid day
                 $current_day_offset++;
                 $posts_scheduled_for_current_day = 0;
@@ -918,6 +927,13 @@ class KSM_PS_Main {
             if (!isset($daily_schedules[$target_date])) {
                 $day_start_time = $start_time;
                 $posts_to_generate = $posts_per_day;
+                
+                // Add progress report for manual runs - new day started
+                if (!$is_cron_run) {
+                    $remaining_posts = $total_posts_to_schedule - $index;
+                    $posts_for_this_day = min($posts_per_day, $remaining_posts);
+                    $progress_report[] = "📅 " . wp_date('l, M j', $target_timestamp) . " - Can schedule {$posts_for_this_day} posts today";
+                }
                 
                 // For today, adjust start time and calculate available slots
                 if ($current_day_offset === 0 && $can_schedule_today) {
@@ -1060,6 +1076,13 @@ class KSM_PS_Main {
             if ($updated_post && $updated_post->post_status === 'future') {
                 $scheduled_count++;
                 $posts_scheduled_for_current_day++;
+                
+                // Add progress tracking for manual runs
+                if (!$is_cron_run) {
+                    $post_title = strlen($post->post_title) > 30 ? substr($post->post_title, 0, 30) . '...' : $post->post_title;
+                    $progress_report[] = "  ✓ Assigned post #{$scheduled_count}: \"{$post_title}\" to {$scheduled_time_str}";
+                }
+                
                 error_log("KSM DEBUG - ✓ Successfully scheduled post {$post->ID} for $scheduled_time_mysql");
                 error_log("KSM DEBUG - Updated counters: scheduled_count=$scheduled_count, posts_for_current_day=$posts_scheduled_for_current_day");
             } else {
@@ -1075,6 +1098,16 @@ class KSM_PS_Main {
         $message = "Successfully scheduled $scheduled_count posts.";
         if (!$is_cron_run) {
             $message .= " (Manual scheduling - daily limits bypassed)";
+            
+            // Add detailed progress report for manual runs
+            if (!empty($progress_report)) {
+                $message .= "\n\n📊 SCHEDULING PROGRESS REPORT:\n";
+                $message .= "Total posts processed: {$total_posts_to_schedule}\n";
+                $message .= "Posts successfully scheduled: {$scheduled_count}\n\n";
+                $message .= "Day-by-day breakdown:\n";
+                $message .= implode("\n", $progress_report);
+                $message .= "\n\n✅ All posts have been scheduled according to your daily limits and time windows.";
+            }
         } else {
             $message .= " (Automatic scheduling - daily limits applied)";
         }
