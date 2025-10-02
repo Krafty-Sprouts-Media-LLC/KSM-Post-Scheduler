@@ -279,7 +279,7 @@ if (!defined('ABSPATH')) {
                                     <legend class="screen-reader-text"><?php _e('Select individual users to exclude from author assignment', 'ksm-post-scheduler'); ?></legend>
                                     <?php
                                     // Get all users with allowed roles
-                                    $allowed_roles = $options['allowed_author_roles'] ?? array('author', 'editor', 'administrator');
+                                    $allowed_roles = $options['allowed_author_roles'] ?? array('contributor', 'author', 'editor', 'administrator');
                                     $excluded_users = $options['excluded_users'] ?? array();
                                     
                                     if (!empty($allowed_roles)) {
@@ -287,21 +287,85 @@ if (!defined('ABSPATH')) {
                                             'role__in' => $allowed_roles,
                                             'orderby' => 'display_name',
                                             'order' => 'ASC',
-                                            'number' => 100
+                                            'number' => 500 // Increased limit but still reasonable
                                         ));
                                         
                                         if (!empty($users)) {
-                                            foreach ($users as $user) {
-                                                ?>
-                                                <label style="display: block; margin-bottom: 5px;">
-                                                    <input type="checkbox" 
-                                                           name="<?php echo esc_attr($this->option_name); ?>[excluded_users][]" 
-                                                           value="<?php echo esc_attr($user->ID); ?>" 
-                                                           <?php checked(in_array($user->ID, $excluded_users), true); ?>>
-                                                    <?php echo esc_html($user->display_name . ' (' . $user->user_login . ')'); ?>
-                                                </label>
-                                                <?php
-                                            }
+                                            $user_count = count($users);
+                                            ?>
+                                            <div class="ksm-user-exclusion-container">
+                                                <?php if ($user_count > 10): ?>
+                                                <div class="ksm-user-search" style="margin-bottom: 15px;">
+                                                    <input type="text" 
+                                                           id="ksm-user-search" 
+                                                           placeholder="<?php _e('Search users...', 'ksm-post-scheduler'); ?>" 
+                                                           style="width: 300px; padding: 5px;">
+                                                    <button type="button" 
+                                                            id="ksm-select-all" 
+                                                            class="button button-secondary" 
+                                                            style="margin-left: 10px;">
+                                                        <?php _e('Select All Visible', 'ksm-post-scheduler'); ?>
+                                                    </button>
+                                                    <button type="button" 
+                                                            id="ksm-deselect-all" 
+                                                            class="button button-secondary">
+                                                        <?php _e('Deselect All', 'ksm-post-scheduler'); ?>
+                                                    </button>
+                                                </div>
+                                                <?php endif; ?>
+                                                
+                                                <div class="ksm-users-grid" style="max-height: 300px; overflow-y: auto; border: 1px solid #ddd; padding: 10px; background: #f9f9f9;">
+                                                    <?php foreach ($users as $user): ?>
+                                                    <label class="ksm-user-item" style="display: block; margin-bottom: 8px; padding: 5px; background: white; border-radius: 3px;">
+                                                        <input type="checkbox" 
+                                                               name="<?php echo esc_attr($this->option_name); ?>[excluded_users][]" 
+                                                               value="<?php echo esc_attr($user->ID); ?>" 
+                                                               <?php checked(in_array($user->ID, $excluded_users), true); ?>
+                                                               class="ksm-user-checkbox">
+                                                        <strong><?php echo esc_html($user->display_name); ?></strong>
+                                                        <span style="color: #666; font-size: 0.9em;">
+                                                            (<?php echo esc_html($user->user_login); ?>) - 
+                                                            <?php 
+                                                            $user_roles = array_intersect($user->roles, $allowed_roles);
+                                                            echo esc_html(implode(', ', $user_roles)); 
+                                                            ?>
+                                                        </span>
+                                                    </label>
+                                                    <?php endforeach; ?>
+                                                </div>
+                                                
+                                                <p style="margin-top: 10px; font-style: italic; color: #666;">
+                                                    <?php printf(__('Showing %d users with allowed roles.', 'ksm-post-scheduler'), $user_count); ?>
+                                                </p>
+                                            </div>
+                                            
+                                            <script type="text/javascript">
+                                            jQuery(document).ready(function($) {
+                                                // Search functionality
+                                                $('#ksm-user-search').on('keyup', function() {
+                                                    var searchTerm = $(this).val().toLowerCase();
+                                                    $('.ksm-user-item').each(function() {
+                                                        var userText = $(this).text().toLowerCase();
+                                                        if (userText.indexOf(searchTerm) > -1) {
+                                                            $(this).show();
+                                                        } else {
+                                                            $(this).hide();
+                                                        }
+                                                    });
+                                                });
+                                                
+                                                // Select all visible users
+                                                $('#ksm-select-all').on('click', function() {
+                                                    $('.ksm-user-item:visible .ksm-user-checkbox').prop('checked', true);
+                                                });
+                                                
+                                                // Deselect all users
+                                                $('#ksm-deselect-all').on('click', function() {
+                                                    $('.ksm-user-checkbox').prop('checked', false);
+                                                });
+                                            });
+                                            </script>
+                                            <?php
                                         } else {
                                             echo '<p>' . __('No users found with the selected roles.', 'ksm-post-scheduler') . '</p>';
                                         }
@@ -309,7 +373,7 @@ if (!defined('ABSPATH')) {
                                         echo '<p>' . __('Please select allowed author roles first.', 'ksm-post-scheduler') . '</p>';
                                     }
                                     ?>
-                                    <p class="description"><?php _e('Select individual users to exclude from random author assignment. These users will never be assigned as authors even if they have the allowed roles.', 'ksm-post-scheduler'); ?></p>
+                                    <p class="description"><?php _e('Select individual users to exclude from random author assignment. These users will never be assigned as authors even if they have the allowed roles. Use the search box above to quickly find specific users.', 'ksm-post-scheduler'); ?></p>
                                 </fieldset>
                             </td>
                         </tr>

@@ -3,7 +3,7 @@
  * Plugin Name: KSM Post Scheduler
  * Plugin URI: https://kraftysprouts.com
  * Description: Automatically schedules posts from a specific status to publish at random times
- * Version: 1.8.0
+ * Version: 1.8.1
  * Author: Krafty Sprouts Media, LLC
  * Author URI: https://kraftysprouts.com
  * License: GPL v2 or later
@@ -16,7 +16,7 @@
  * Network: false
  * 
  * @package KSM_Post_Scheduler
- * @version 1.8.0
+ * @version 1.8.1
  * @author KraftySpoutsMedia, LLC
  * @copyright 2025 KraftySpouts
  * @license GPL-2.0-or-later
@@ -38,7 +38,7 @@ if (!defined('ABSPATH')) {
 }
 
 // Define plugin constants
-define('KSM_PS_VERSION', '1.4.4');
+define('KSM_PS_VERSION', '1.8.1');
 define('KSM_PS_PLUGIN_FILE', __FILE__);
 define('KSM_PS_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('KSM_PS_PLUGIN_URL', plugin_dir_url(__FILE__));
@@ -160,7 +160,7 @@ class KSM_PS_Main {
             'days_active' => array('monday', 'tuesday', 'wednesday', 'thursday', 'friday'),
             'min_interval' => 30,
             'randomize_authors' => false,
-            'allowed_author_roles' => array('author', 'editor', 'administrator'),
+            'allowed_author_roles' => array('contributor', 'author', 'editor', 'administrator'),
             'excluded_users' => array(),
             'assignment_strategy' => 'random',
             'version' => KSM_PS_VERSION,

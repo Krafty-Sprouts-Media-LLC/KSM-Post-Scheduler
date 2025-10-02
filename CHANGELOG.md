@@ -2,6 +2,29 @@
 
 All notable changes to the KSM Post Scheduler plugin will be documented in this file.
 
+## [1.8.1] - 02/10/2025
+
+### Added
+- **Enhanced User Interface**: Added search functionality for excluded users selection to handle sites with many users
+- **Bulk Selection Tools**: Added "Select All Visible" and "Deselect All" buttons for easier user management
+- **Improved User Display**: Enhanced user information display with roles and better visual organization
+
+### Improved
+- **Contributor Role Support**: Added 'contributor' role to default allowed author roles for more comprehensive user coverage
+- **Scalable UI**: Optimized excluded users interface with scrollable container (max 300px height) and search filtering
+- **User Experience**: Better organization of user selection with individual user cards and role information
+- **Performance**: Increased user query limit to 500 while maintaining reasonable performance
+
+### Fixed
+- **Version Consistency**: Updated KSM_PS_VERSION constant from outdated 1.4.4 to current 1.8.1
+- **Role Coverage**: Ensured all standard WordPress content creation roles are included by default
+
+### Technical Improvements
+- Added real-time search filtering with jQuery for instant user filtering
+- Implemented responsive user selection interface with better visual hierarchy
+- Enhanced user role display to show which roles each user has within allowed roles
+- Added user count display to show total available users
+
 ## [1.8.0] - 02/10/2025
 
 ### Added
