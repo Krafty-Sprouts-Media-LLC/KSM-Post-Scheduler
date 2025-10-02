@@ -3,7 +3,7 @@
  * Plugin Name: KSM Post Scheduler
  * Plugin URI: https://kraftysprouts.com
  * Description: Automatically schedules posts from a specific status to publish at random times
- * Version: 1.6.5
+ * Version: 1.6.6
  * Author: Krafty Sprouts Media, LLC
  * Author URI: https://kraftysprouts.com
  * License: GPL v2 or later
@@ -812,40 +812,9 @@ class KSM_PS_Main {
         $current_day_offset = 0;
         $posts_scheduled_for_current_day = 0;
         
-        // For manual scheduling, distribute posts across future dates like cron runs
-        if (!$is_cron_run) {
-            error_log("KSM DEBUG - Manual scheduling mode: distributing posts across future dates");
-            error_log("KSM DEBUG - Will schedule up to " . count($posts) . " posts across multiple days respecting daily limits");
-            
-            // In manual mode, we now distribute posts across future dates respecting daily limits
-            // This provides consistent behavior between manual and automatic scheduling
-        } else {
-            // For automatic cron runs, check daily limits
-            $today_scheduled = get_posts(array(
-                'post_status' => 'future',
-                'numberposts' => -1,
-                'post_type' => 'post',
-                'date_query' => array(
-                    array(
-                        'year'  => (int)current_time('Y'),
-                        'month' => (int)current_time('n'),
-                        'day'   => (int)current_time('j'),
-                    ),
-                ),
-            ));
-            
-            $posts_already_scheduled_today = count($today_scheduled);
-            error_log("KSM DEBUG - Posts already scheduled for today: $posts_already_scheduled_today");
-            
-            if ($posts_already_scheduled_today >= $posts_per_day) {
-                return array('success' => false, 'message' => "Daily limit reached. $posts_already_scheduled_today posts already scheduled for today (limit: $posts_per_day).");
-            }
-            
-            // Adjust the number of posts we can schedule today
-            $remaining_slots_today = $posts_per_day - $posts_already_scheduled_today;
-            $posts = array_slice($posts, 0, $remaining_slots_today);
-            error_log("KSM DEBUG - Can schedule $remaining_slots_today more posts today");
-        }
+        // Both manual and cron scheduling now work identically - distribute across multiple days
+        error_log("KSM DEBUG - Scheduling mode: " . ($is_cron_run ? "Automatic cron" : "Manual") . " - distributing posts across future dates");
+        error_log("KSM DEBUG - Will schedule up to " . count($posts) . " posts across multiple days respecting daily limits");
         
         // Determine if we can schedule posts today
         $can_schedule_today = false;

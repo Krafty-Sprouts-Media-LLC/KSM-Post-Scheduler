@@ -2,6 +2,18 @@
 
 All notable changes to the KSM Post Scheduler plugin will be documented in this file.
 
+## [1.6.6] - 02/10/2025
+
+### Improved
+- **UI Clarity**: Enhanced time field descriptions to be more user-friendly and accurate
+- **Start Time Field**: Changed description to "Earliest time posts can be published each day. This defines when your posts will start going live."
+- **End Time Field**: Changed description to "Latest time posts can be published each day. This defines when your posts will stop going live."
+- **Terminology Fix**: Corrected confusing language that mixed "posting" and "scheduling" concepts
+
+### Technical Improvements
+- Updated admin page template with clearer field descriptions for better user experience
+- Improved terminology consistency to distinguish between scheduling process and publication times
+
 ## [1.6.5] - 02/10/2025
 
 ### Fixed

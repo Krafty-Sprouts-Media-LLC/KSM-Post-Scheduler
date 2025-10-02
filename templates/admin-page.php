@@ -112,7 +112,7 @@ if (!defined('ABSPATH')) {
                                        placeholder="9:00 AM"
                                        pattern="^(1[0-2]|[1-9]):[0-5][0-9]\s?(AM|PM|am|pm)$"
                                        title="Enter time in 12-hour format (e.g., 9:00 AM)">
-                                <p class="description"><?php _e('Earliest time to schedule posts (12-hour format, e.g., 9:00 AM).', 'ksm-post-scheduler'); ?></p>
+                                <p class="description"><?php _e('Earliest time posts can be published each day. This defines when your posts will start going live. Use format like 9:00 AM or 10:30 AM.', 'ksm-post-scheduler'); ?></p>
                             </td>
                         </tr>
                         
@@ -132,7 +132,7 @@ if (!defined('ABSPATH')) {
                                        placeholder="6:00 PM"
                                        pattern="^(1[0-2]|[1-9]):[0-5][0-9]\s?(AM|PM|am|pm)$"
                                        title="Enter time in 12-hour format (e.g., 6:00 PM)">
-                                <p class="description"><?php _e('Latest time to schedule posts (12-hour format, e.g., 6:00 PM).', 'ksm-post-scheduler'); ?></p>
+                                <p class="description"><?php _e('Latest time posts can be published each day. This defines when your posts will stop going live. Use format like 6:00 PM or 11:30 PM.', 'ksm-post-scheduler'); ?></p>
                             </td>
                         </tr>
                         
@@ -196,7 +196,7 @@ if (!defined('ABSPATH')) {
             <!-- Manual Scheduling Section -->
             <div class="ksm-ps-manual-run">
                 <h2><?php _e('Manual Scheduling', 'ksm-post-scheduler'); ?></h2>
-                <p><?php _e('Use this button to manually run the scheduler and schedule all pending draft posts immediately.', 'ksm-post-scheduler'); ?></p>
+                <p><?php _e('Click this button to schedule your draft posts right now. It works exactly like the automatic scheduler - it will spread your posts across future dates, respecting your daily limits and active days.', 'ksm-post-scheduler'); ?></p>
                 <button type="button" id="ksm-ps-run-now" class="button button-primary">
                     <?php _e('Schedule Posts Now', 'ksm-post-scheduler'); ?>
                 </button>
