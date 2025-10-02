@@ -2,6 +2,107 @@
 
 All notable changes to the KSM Post Scheduler plugin will be documented in this file.
 
+## [1.6.1] - 02/10/2025
+
+### Critical Fix
+- **IMMEDIATE PUBLISHING BUG**: Fixed critical issue where draft posts were being published immediately instead of being scheduled for future dates
+- **ROBUST SCHEDULING**: Replaced problematic `wp_update_post()` calls with direct database updates to bypass WordPress hook interference
+- **ENHANCED RELIABILITY**: Implemented `wp_schedule_single_event()` for actual publication scheduling, ensuring posts are properly scheduled without conflicts
+- **IMPROVED DEBUGGING**: Added comprehensive logging for scheduling operations to track post status changes and identify potential issues
+- **HOOK MANAGEMENT**: Added proper cleanup for dynamic publication hooks during plugin deactivation
+
+### Technical Details
+- Direct database updates for setting post status to 'future' to avoid WordPress core hook conflicts
+- Dynamic hook registration system for scheduled post publication
+- Enhanced error logging and debugging capabilities for troubleshooting scheduling issues
+
+## [1.6.0] - 02/10/2025
+
+### Major UI Overhaul
+- **UNIFIED INTERFACE**: Completely redesigned admin interface by merging "Current Status" and "Scheduling Preview" into single "Scheduling Overview" box
+- **ELIMINATED DUPLICATES**: Removed all duplicate information display (e.g., "Posts in Monitored Status" vs "Posts waiting to be scheduled")
+- **IMPROVED ORGANIZATION**: Restructured content into three logical sections:
+  - Status & Timing: Scheduler status, last/next cron runs
+  - Queue & Configuration: Posts waiting, daily limits, time windows, active days
+  - Schedule Preview: 5-day scheduling preview with daily breakdowns
+
+### Enhanced
+- **VISUAL HIERARCHY**: Added subtle visual separators between sections for better readability
+- **CSS IMPROVEMENTS**: New `.ksm-ps-overview-box` styling with proper spacing and organization
+- **AJAX FUNCTIONALITY**: Updated refresh mechanism to update entire unified overview section
+- **DATA CONSISTENCY**: Enhanced AJAX handler to return comprehensive scheduling data including options, preview data, and cron timing
+
+### Technical Improvements
+- Updated `ajax_get_status()` to return complete dataset for unified interface
+- Enhanced JavaScript `updateStatusDisplay()` function for comprehensive UI updates
+- Improved CSS with new overview box styles and visual separators
+- Maintained backward compatibility while streamlining user experience
+
+## [1.5.0] - 02/10/2025
+
+### Changed
+- **UI CONSOLIDATION**: Consolidated redundant scheduling sections in admin interface
+- Removed duplicate "Scheduling Configuration" section that displayed identical information
+- Moved comprehensive "Scheduling Preview" section to appear directly after "Current Status"
+- **IMPROVED LAYOUT**: Reorganized admin interface for better information hierarchy and user experience
+- Scheduling preview now appears before "Upcoming Scheduled Posts" for logical flow
+
+### Enhanced
+- **USER EXPERIENCE**: Eliminated confusion from duplicate scheduling information display
+- Streamlined admin interface with single, comprehensive scheduling overview
+- Better visual organization of plugin status and scheduling information
+
+## [1.4.9] - 02/10/2025
+
+### Fixed
+- **ADMIN INTERFACE ERRORS**: Fixed "Array to string conversion" PHP warnings in admin template
+- Fixed daily preview display to properly handle array data structure instead of attempting string conversion
+- **DUPLICATE SECTIONS**: Removed duplicate "Scheduling Preview" functionality from "Scheduling Configuration" section
+- Consolidated scheduling preview into dedicated section with comprehensive data display
+- **TEMPLATE OPTIMIZATION**: Streamlined admin template to eliminate redundant code and improve maintainability
+
+### Enhanced
+- **SCHEDULING PREVIEW**: Improved scheduling preview display with proper array handling
+- Enhanced daily preview to show posts count and time windows for each day
+- Better separation of concerns between configuration display and preview functionality
+
+## [1.4.8] - 02/10/2025
+
+### Fixed
+- **CRITICAL SCHEDULING BUG**: Fixed issue where recently added articles were being published immediately instead of being scheduled
+- Modified `schedule_posts()` function to properly respect "Posts Per Day" limits during manual testing
+- Fixed manual testing button exceeding daily post limits by implementing proper day-based scheduling validation
+- **MANUAL TESTING LIMITS**: Enforced "Posts Per Day" limit for manual testing to prevent over-scheduling on the current day
+- Added validation to ensure manual testing only schedules posts for the current day and respects daily limits
+- **SCHEDULING LOGIC**: Enhanced scheduling logic to differentiate between cron runs (7 days worth) and manual testing (current day only)
+
+### Added
+- **LAST CRON RUN DISPLAY**: Added "Last Cron Run" information to complement existing "Next Cron Run" display
+- Implemented tracking of last cron execution time in plugin options
+- **ENHANCED STATUS DISPLAY**: Significantly improved "Current Status" section to show detailed scheduling configuration
+- Added scheduling preview showing posts per day, time window, active days, and minimum interval
+- Added today's scheduling status showing posts already scheduled and remaining capacity
+- **COMPREHENSIVE SCHEDULING INFO**: Added detailed configuration display including:
+  - Posts per day setting
+  - Active scheduling days
+  - Time window (start to end time)
+  - Minimum interval between posts
+  - Current day's scheduling status
+
+### Enhanced
+- **ADMIN INTERFACE**: Improved admin page layout with better organization of scheduling information
+- Added CSS styles for new scheduling configuration display and status information
+- Enhanced visual presentation of scheduling preview and today's status
+- **SCHEDULING VALIDATION**: Improved scheduling logic to prevent articles from being published instead of scheduled
+- Added proper parameter handling to distinguish between cron runs and manual testing
+
+### Technical
+- Updated `random_post_scheduler_daily_cron()` to record last cron run time
+- Modified `schedule_posts()` function to accept `$is_cron_run` parameter for proper limit handling
+- Enhanced `ajax_run_now()` to pass correct parameters for manual testing validation
+- Added new CSS classes for scheduling info display and configuration grid
+- Updated admin page template with comprehensive status and configuration sections
+
 ## [1.4.7] - 01/10/2025
 
 ### Fixed
