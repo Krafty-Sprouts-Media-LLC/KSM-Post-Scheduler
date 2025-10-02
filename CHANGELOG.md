@@ -2,6 +2,18 @@
 
 All notable changes to the KSM Post Scheduler plugin will be documented in this file.
 
+## [1.6.5] - 02/10/2025
+
+### Fixed
+- **Manual Scheduling Distribution**: Fixed manual scheduling to properly distribute posts across future dates instead of being restricted to the current day only
+- **Daily Limits Enforcement**: Manual scheduling now respects daily limits and distributes posts across multiple days when necessary
+- **Future Date Scheduling**: Removed artificial restriction that prevented manual scheduling from scheduling posts beyond the current day
+
+### Technical Improvements
+- Modified `schedule_posts()` function to allow manual scheduling to use the same distribution logic as automatic scheduling
+- Updated progress messages to accurately reflect that manual scheduling now distributes posts across future dates
+- Enhanced debug logging to properly indicate when manual scheduling distributes posts across multiple days
+
 ## [1.6.4] - 02/10/2025
 
 ### Changed

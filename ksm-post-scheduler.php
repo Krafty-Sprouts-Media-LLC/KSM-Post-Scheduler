@@ -3,7 +3,7 @@
  * Plugin Name: KSM Post Scheduler
  * Plugin URI: https://kraftysprouts.com
  * Description: Automatically schedules posts from a specific status to publish at random times
- * Version: 1.6.4
+ * Version: 1.6.5
  * Author: Krafty Sprouts Media, LLC
  * Author URI: https://kraftysprouts.com
  * License: GPL v2 or later
@@ -16,7 +16,7 @@
  * Network: false
  * 
  * @package KSM_Post_Scheduler
- * @version 1.6.4
+ * @version 1.6.5
  * @author KraftySpoutsMedia, LLC
  * @copyright 2025 KraftySpouts
  * @license GPL-2.0-or-later
@@ -760,9 +760,9 @@ class KSM_PS_Main {
         $options = get_option($this->option_name, array());
         $posts_per_day = $options['posts_per_day'] ?? 5;
         
-        // For manual scheduling, limit to current day's posts only
-        // For cron runs, schedule up to 7 days worth
-        $max_posts_to_schedule = $is_cron_run ? ($posts_per_day * 7) : $posts_per_day;
+        // For both manual and cron scheduling, allow scheduling across multiple days
+        // Manual scheduling can now distribute posts across future dates like cron runs
+        $max_posts_to_schedule = $posts_per_day * 7; // Allow up to 7 days worth for both manual and cron
         
         // Get posts to schedule
         $posts = get_posts(array(
@@ -812,13 +812,13 @@ class KSM_PS_Main {
         $current_day_offset = 0;
         $posts_scheduled_for_current_day = 0;
         
-        // For manual scheduling, bypass daily limits and schedule immediately
+        // For manual scheduling, distribute posts across future dates like cron runs
         if (!$is_cron_run) {
-            error_log("KSM DEBUG - Manual scheduling mode: bypassing daily limits");
-            error_log("KSM DEBUG - Will schedule all " . count($posts) . " posts regardless of daily limits");
+            error_log("KSM DEBUG - Manual scheduling mode: distributing posts across future dates");
+            error_log("KSM DEBUG - Will schedule up to " . count($posts) . " posts across multiple days respecting daily limits");
             
-            // In manual mode, we don't check daily limits - schedule all requested posts
-            // This allows administrators to override automatic scheduling constraints
+            // In manual mode, we now distribute posts across future dates respecting daily limits
+            // This provides consistent behavior between manual and automatic scheduling
         } else {
             // For automatic cron runs, check daily limits
             $today_scheduled = get_posts(array(
@@ -883,9 +883,13 @@ class KSM_PS_Main {
             error_log("KSM DEBUG - Cannot schedule posts today - not an active day ($today_name)");
         }
         
-        // For manual scheduling, if we can't schedule today, return an error
+        // For manual scheduling, allow scheduling across future dates just like cron runs
+        // Remove the restriction that limited manual scheduling to current day only
         if (!$is_cron_run && !$can_schedule_today) {
-            return array('success' => false, 'message' => 'Cannot schedule posts today. Either it\'s not an active day or the scheduling window has passed.');
+            error_log("KSM DEBUG - Manual scheduling: Cannot schedule today, will start from next valid day");
+            // Don't return error - continue to schedule across future dates
+            $current_day_offset = 1; // Start from tomorrow
+            $posts_scheduled_for_current_day = 0;
         }
         
         // Log the starting point
@@ -1097,7 +1101,7 @@ class KSM_PS_Main {
         
         $message = "Successfully scheduled $scheduled_count posts.";
         if (!$is_cron_run) {
-            $message .= " (Manual scheduling - daily limits bypassed)";
+            $message .= " (Manual scheduling - distributed across future dates)";
             
             // Add detailed progress report for manual runs
             if (!empty($progress_report)) {
