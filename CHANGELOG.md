@@ -2,6 +2,17 @@
 
 All notable changes to the KSM Post Scheduler plugin will be documented in this file.
 
+## [1.8.3] - 02/10/2025
+
+### Improved
+- **Post Status Clarity**: Updated custom post status label from "Scheduled for Publishing" to "Ready to Schedule" to avoid confusion with WordPress's built-in scheduled status
+- **Admin Interface**: Added comprehensive explanation of different post statuses in the admin interface
+- **User Experience**: Added informational notice explaining the difference between "Ready to Schedule", "Scheduled (WordPress)", and "Draft" statuses
+
+### Fixed
+- **Status Confusion**: Resolved confusion between the plugin's custom status and WordPress's native scheduled status
+- **User Interface**: Improved clarity in status selection with detailed descriptions and explanations
+
 ## [1.8.2] - 02/10/2025
 
 ### Added

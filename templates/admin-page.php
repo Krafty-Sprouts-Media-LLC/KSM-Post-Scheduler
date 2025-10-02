@@ -30,6 +30,23 @@ if (!defined('ABSPATH')) {
     }
     ?>
     
+    <!-- Post Status Information -->
+    <div class="notice notice-info">
+        <h3><?php _e('Understanding Post Statuses', 'ksm-post-scheduler'); ?></h3>
+        <p>
+            <strong><?php _e('Ready to Schedule:', 'ksm-post-scheduler'); ?></strong> 
+            <?php _e('Posts with this status are waiting to be automatically scheduled by this plugin.', 'ksm-post-scheduler'); ?>
+        </p>
+        <p>
+            <strong><?php _e('Scheduled (WordPress):', 'ksm-post-scheduler'); ?></strong> 
+            <?php _e('Posts that are already scheduled for future publication by WordPress itself.', 'ksm-post-scheduler'); ?>
+        </p>
+        <p>
+            <strong><?php _e('Draft:', 'ksm-post-scheduler'); ?></strong> 
+            <?php _e('Unpublished posts that can also be monitored for automatic scheduling.', 'ksm-post-scheduler'); ?>
+        </p>
+    </div>
+
     <div class="ksm-ps-admin-container">
         <div class="ksm-ps-main-content">
             <form method="post" action="options.php">
@@ -75,7 +92,11 @@ if (!defined('ABSPATH')) {
                                         <?php _e('Draft', 'ksm-post-scheduler'); ?>
                                     </option>
                                 </select>
-                                <p class="description"><?php _e('Select which post status to monitor for scheduling.', 'ksm-post-scheduler'); ?></p>
+                                <p class="description">
+                                    <?php _e('Select which post status to monitor for automatic scheduling.', 'ksm-post-scheduler'); ?><br>
+                                    <strong><?php _e('Note:', 'ksm-post-scheduler'); ?></strong> 
+                                    <?php _e('"Ready to Schedule" posts will be automatically scheduled by this plugin. "Scheduled" posts are already scheduled by WordPress.', 'ksm-post-scheduler'); ?>
+                                </p>
                             </td>
                         </tr>
                         
