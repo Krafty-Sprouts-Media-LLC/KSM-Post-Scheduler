@@ -3,7 +3,7 @@
  * Plugin Name: KSM Post Scheduler
  * Plugin URI: https://kraftysprouts.com
  * Description: Automatically schedules posts from a specific status to publish at random times
- * Version: 1.8.8
+ * Version: 1.9.0
  * Author: Krafty Sprouts Media, LLC
  * Author URI: https://kraftysprouts.com
  * License: GPL v2 or later
@@ -38,7 +38,7 @@ if (!defined('ABSPATH')) {
 }
 
 // Define plugin constants
-define('KSM_PS_VERSION', '1.8.8');
+define('KSM_PS_VERSION', '1.9.0');
 define('KSM_PS_PLUGIN_FILE', __FILE__);
 define('KSM_PS_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('KSM_PS_PLUGIN_URL', plugin_dir_url(__FILE__));
@@ -124,8 +124,7 @@ class KSM_PS_Main {
         // Dynamic publication hooks (registered for each scheduled post)
         add_action('init', array($this, 'register_publication_hooks'));
         
-        // Custom post status registration
-        add_action('init', array($this, 'register_custom_post_status'));
+
         
         // AJAX hooks
         add_action('wp_ajax_ksm_ps_run_now', array($this, 'ajax_run_now'));
@@ -153,7 +152,7 @@ class KSM_PS_Main {
         // Set default options
         $default_options = array(
             'enabled' => false,
-            'post_status' => 'ksm_scheduled',
+            'post_status' => 'draft',
             'posts_per_day' => 5,
             'start_time' => '9:00 AM',
             'end_time' => '6:00 PM',
@@ -228,19 +227,7 @@ class KSM_PS_Main {
             wp_clear_scheduled_hook($hook_name);
         }
         
-        // Convert posts from custom status back to draft
-        $custom_status_posts = get_posts(array(
-            'post_status' => 'ksm_scheduled',
-            'numberposts' => -1,
-            'post_type' => 'post'
-        ));
-        
-        foreach ($custom_status_posts as $post) {
-            wp_update_post(array(
-                'ID' => $post->ID,
-                'post_status' => 'draft'
-            ));
-        }
+
         
         // Clear any transients
         delete_transient('ksm_ps_status_cache');
@@ -266,124 +253,21 @@ class KSM_PS_Main {
         }
     }
     
-    /**
-     * Register custom post status for scheduled posts
-     * 
-     * @since 1.7.0
-     */
-    public function register_custom_post_status() {
-        register_post_status('ksm_scheduled', array(
-            'label'                     => _x('Ready to Schedule', 'post status', 'ksm-post-scheduler'),
-            'public'                    => false,
-            'exclude_from_search'       => true,
-            'show_in_admin_all_list'    => true,
-            'show_in_admin_status_list' => true,
-            'label_count'               => _n_noop(
-                'Ready to Schedule <span class="count">(%s)</span>',
-                'Ready to Schedule <span class="count">(%s)</span>',
-                'ksm-post-scheduler'
-            ),
-        ));
-        
-        // Make the status appear in WordPress native dropdowns
-        add_action('admin_head-post.php', array($this, 'add_status_to_dropdown'));
-        add_action('admin_head-post-new.php', array($this, 'add_status_to_dropdown'));
-        add_action('admin_head-edit.php', array($this, 'add_status_to_dropdown'));
-        
-        // Add custom status to posts list table
-        add_filter('display_post_states', array($this, 'display_custom_post_states'), 10, 2);
-    }
+
     
-    /**
-     * Add custom status to WordPress native dropdowns
-     * 
-     * @since 1.8.7
-     */
-    public function add_status_to_dropdown() {
-        global $post;
-        
-        // Only for post type 'post'
-        if (!$post || $post->post_type !== 'post') {
-            return;
-        }
-        
-        ?>
-        <style>
-        .misc-pub-section .ksm-scheduled-status {
-            color: #d63638;
-            font-weight: 600;
-        }
-        </style>
-        <script type="text/javascript">
-        jQuery(document).ready(function($) {
-            // Function to add our custom status to any status dropdown
-            function addCustomStatus() {
-                $('select[name="post_status"], select[name="_status"]').each(function() {
-                    var $select = $(this);
-                    if ($select.find('option[value="ksm_scheduled"]').length === 0) {
-                        $select.append('<option value="ksm_scheduled"><?php echo esc_js(__('Ready to Schedule', 'ksm-post-scheduler')); ?></option>');
-                    }
-                });
-            }
-            
-            // Add status immediately
-            addCustomStatus();
-            
-            // Add status when edit status is clicked
-            $(document).on('click', '.edit-post-status', function() {
-                setTimeout(addCustomStatus, 100);
-            });
-            
-            // Add status when quick edit is opened
-            $(document).on('click', '.editinline', function() {
-                setTimeout(addCustomStatus, 100);
-            });
-            
-            // Add status when bulk edit is opened
-            $(document).on('click', '#doaction, #doaction2', function() {
-                setTimeout(addCustomStatus, 100);
-            });
-            
-            // Set current status if it's our custom status
-            if ('<?php echo esc_js($post->post_status ?? ''); ?>' === 'ksm_scheduled') {
-                $('select[name="post_status"]').val('ksm_scheduled');
-                $('#post-status-display').text('<?php echo esc_js(__('Ready to Schedule', 'ksm-post-scheduler')); ?>');
-            }
-            
-            // Handle status display updates
-            $(document).on('change', 'select[name="post_status"]', function() {
-                var status = $(this).val();
-                var statusText = '';
-                
-                switch(status) {
-                    case 'draft':
-                        statusText = '<?php echo esc_js(__('Draft')); ?>';
-                        break;
-                    case 'pending':
-                        statusText = '<?php echo esc_js(__('Pending Review')); ?>';
-                        break;
-                    case 'ksm_scheduled':
-                        statusText = '<?php echo esc_js(__('Ready to Schedule', 'ksm-post-scheduler')); ?>';
-                        break;
-                    case 'future':
-                        statusText = '<?php echo esc_js(__('Scheduled')); ?>';
-                        break;
-                    case 'publish':
-                        statusText = '<?php echo esc_js(__('Published')); ?>';
-                        break;
-                    default:
-                        statusText = status;
-                }
-                
-                // Update display when save button is clicked
-                $('#save-post-status').on('click', function() {
-                    $('#post-status-display').text(statusText);
-                });
-            });
-        });
-        </script>
-        <?php
-    }
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
     
 
     
@@ -749,11 +633,6 @@ class KSM_PS_Main {
         
         $options = get_option($this->option_name, array());
         $post_statuses = get_post_stati(array('public' => false), 'objects');
-        
-        // Ensure our custom status is included
-        if (!isset($post_statuses['ksm_scheduled'])) {
-            $post_statuses['ksm_scheduled'] = get_post_status_object('ksm_scheduled');
-        }
         
         // Get current status
         $monitored_count = $this->get_monitored_posts_count();
@@ -1796,21 +1675,7 @@ class KSM_PS_Main {
     
 
     
-    /**
-     * Display custom post states in posts list
-     * 
-     * @param array $post_states
-     * @param WP_Post $post
-     * @return array
-     * @since 1.8.7
-     */
-    public function display_custom_post_states($post_states, $post) {
-        if ($post->post_status === 'ksm_scheduled') {
-            $post_states['ksm_scheduled'] = __('Ready to Schedule', 'ksm-post-scheduler');
-        }
-        
-        return $post_states;
-    }
+
 }
 
 // Initialize the plugin

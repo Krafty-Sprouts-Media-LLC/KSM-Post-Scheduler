@@ -53,46 +53,121 @@
         },
         
         /**
-         * Run scheduler manually
+         * Run scheduler manually with enhanced validation
          */
         runNow: function(e) {
-            e.preventDefault();
+            if (e) e.preventDefault();
             
-            var $button = $(this);
+            // Clear any existing results first to prevent duplicates
+            $('#ksm-ps-run-result').empty().hide().removeClass('notice-success notice-error');
+            
+            // Check if validation has been performed and if settings are valid
+            if (typeof window.ksmSchedulingValid !== 'undefined' && !window.ksmSchedulingValid) {
+                var warningMessage = '<div class="notice notice-error" style="margin: 15px 0; padding: 12px;">';
+                warningMessage += '<h4 style="margin: 0 0 10px 0;">🚫 Cannot Run Manual Scheduling</h4>';
+                warningMessage += '<p><strong>Your current settings will prevent proper scheduling:</strong></p>';
+                warningMessage += '<ul style="margin: 10px 0 10px 20px;">';
+                
+                if (window.ksmValidationWarnings && window.ksmValidationWarnings.length > 0) {
+                    window.ksmValidationWarnings.forEach(function(warning) {
+                        // Strip HTML tags for the list display
+                        var cleanWarning = warning.replace(/<[^>]*>/g, '');
+                        warningMessage += '<li>' + cleanWarning + '</li>';
+                    });
+                }
+                
+                warningMessage += '</ul>';
+                warningMessage += '<p><strong>Please fix the issues above using the Smart Suggestions, then try again.</strong></p>';
+                warningMessage += '</div>';
+                
+                $('#ksm-ps-run-result').html(warningMessage).show();
+                return;
+            }
+            
+            // Validate form before proceeding
+            if (!this.validateForm()) {
+                return;
+            }
+            
+            var $button = $('#ksm-ps-run-now');
             var $result = $('#ksm-ps-run-result');
+            var originalText = $button.text();
             
-            // Disable button and show loading
-            $button.prop('disabled', true).text(ksm_ps_ajax.strings.running);
-            $result.removeClass('success error info').hide();
+            // Disable button and show loading state
+            $button.prop('disabled', true)
+                   .html('<span class="spinner is-active" style="float: none; margin: 0 5px 0 0;"></span>Scheduling Posts...');
             
-            // Add spinner
-            $button.prepend('<span class="ksm-ps-spinner"></span>');
+            // Ensure result container is completely clean
+            $result.stop(true, true).empty().hide().removeClass('notice-success notice-error ksm-ps-result success');
             
-            // Make AJAX request
+            // Prevent multiple simultaneous requests
+            if (window.ksmSchedulingInProgress) {
+                $button.prop('disabled', false).text(originalText);
+                return;
+            }
+            window.ksmSchedulingInProgress = true;
+            
             $.ajax({
-                url: ksm_ps_ajax.ajax_url,
+                 url: ksm_ps_ajax.ajax_url,
                 type: 'POST',
                 data: {
-                    action: 'ksm_ps_run_now',
-                    nonce: ksm_ps_ajax.nonce
-                },
+                     action: 'ksm_ps_run_now',
+                     nonce: ksm_ps_ajax.nonce
+                 },
+                timeout: 60000, // 60 second timeout
                 success: function(response) {
+                    window.ksmSchedulingInProgress = false;
+                    $button.prop('disabled', false).text(originalText);
+                    
+                    // Clear any existing content before adding new content
+                    $result.stop(true, true).empty().removeClass('notice-success notice-error ksm-ps-result success');
+                    
                     if (response.success) {
-                        // Format the response message with HTML for better readability
-                        var formattedMessage = KSM_PS_Admin.formatProgressReport(response.message);
-                        $result.addClass('success').html(formattedMessage).show();
-                        // Refresh status after successful run
-                        KSM_PS_Admin.refreshStatus();
+                        var resultHtml = '<div class="notice notice-success ksm-ps-result success" style="margin: 15px 0; padding: 12px;">';
+                        resultHtml += '<h4 style="margin: 0 0 10px 0; color: #155724;">✅ Manual Scheduling Completed Successfully</h4>';
+                        
+                        if (response.data && response.data.message) {
+                            resultHtml += '<div class="ksm-ps-progress-report">';
+                            resultHtml += KSM_PS_Admin.formatProgressReport(response.data.message);
+                            resultHtml += '</div>';
+                        }
+                        
+                        resultHtml += '</div>';
+                        $result.html(resultHtml).show();
+                        
+                        // Refresh status after successful scheduling
+                        setTimeout(function() {
+                            KSM_PS_Admin.refreshStatus();
+                        }, 1000);
+                        
                     } else {
-                        $result.addClass('error').text(response.message || ksm_ps_ajax.strings.error).show();
+                        var errorHtml = '<div class="notice notice-error" style="margin: 15px 0; padding: 12px;">';
+                        errorHtml += '<h4 style="margin: 0 0 10px 0; color: #721c24;">❌ Manual Scheduling Failed</h4>';
+                        errorHtml += '<p><strong>Error:</strong> ' + (response.data || 'Unknown error occurred') + '</p>';
+                        errorHtml += '</div>';
+                        $result.html(errorHtml).show();
                     }
                 },
                 error: function(xhr, status, error) {
-                    $result.addClass('error').text(ksm_ps_ajax.strings.error + ' ' + error).show();
-                },
-                complete: function() {
-                    // Re-enable button and remove spinner
-                    $button.prop('disabled', false).text('Run Now').find('.ksm-ps-spinner').remove();
+                    window.ksmSchedulingInProgress = false;
+                    $button.prop('disabled', false).text(originalText);
+                    
+                    // Clear any existing content before adding error content
+                    $result.stop(true, true).empty().removeClass('notice-success notice-error ksm-ps-result success');
+                    
+                    var errorHtml = '<div class="notice notice-error" style="margin: 15px 0; padding: 12px;">';
+                    errorHtml += '<h4 style="margin: 0 0 10px 0; color: #721c24;">❌ Manual Scheduling Failed</h4>';
+                    
+                    if (status === 'timeout') {
+                        errorHtml += '<p><strong>Error:</strong> Request timed out. The scheduling process may still be running in the background.</p>';
+                        errorHtml += '<p>Please check the status in a few minutes and avoid running manual scheduling again immediately.</p>';
+                    } else {
+                        errorHtml += '<p><strong>Error:</strong> ' + error + '</p>';
+                        errorHtml += '<p><strong>Status:</strong> ' + status + '</p>';
+                    }
+                    
+                    errorHtml += '</div>';
+                    $result.html(errorHtml).show();
                 }
             });
         },
@@ -479,61 +554,142 @@
         },
         
         /**
-         * Update time calculator display
+         * Update time calculator with enhanced warnings
          */
-        updateTimeCalculator: function(availableMinutes, requiredMinutes, postsPerDay, minInterval) {
-            var $calculator = $('#ksm-time-calculator');
-            if ($calculator.length === 0) {
-                // Create calculator if it doesn't exist
-                var calculatorHtml = '<div id="ksm-time-calculator" class="ksm-time-calculator">' +
-                    '<h4>📊 Time Analysis</h4>' +
-                    '<div class="time-stats">' +
-                        '<div class="stat-item">' +
-                            '<span class="stat-label">Available Time:</span>' +
-                            '<span class="stat-value" id="available-time"></span>' +
-                        '</div>' +
-                        '<div class="stat-item">' +
-                            '<span class="stat-label">Required Time:</span>' +
-                            '<span class="stat-value" id="required-time"></span>' +
-                        '</div>' +
-                        '<div class="stat-item">' +
-                            '<span class="stat-label">Status:</span>' +
-                            '<span class="stat-value" id="time-status"></span>' +
-                        '</div>' +
-                    '</div>' +
-                    '<div id="smart-suggestions" class="smart-suggestions"></div>' +
-                '</div>';
-                
-                $('#ksm_ps_end_time').closest('.form-group').after(calculatorHtml);
-                $calculator = $('#ksm-time-calculator');
-            }
-            
-            // Update calculator values
-            var availableHours = Math.floor(availableMinutes / 60);
-            var availableMins = availableMinutes % 60;
-            var requiredHours = Math.floor(requiredMinutes / 60);
-            var requiredMins = requiredMinutes % 60;
-            
-            $('#available-time').text(availableHours + 'h ' + availableMins + 'm (' + availableMinutes + ' min)');
-            $('#required-time').text(requiredHours + 'h ' + requiredMins + 'm (' + requiredMinutes + ' min)');
-            
-            var $status = $('#time-status');
-            var $suggestions = $('#smart-suggestions');
-            
-            if (requiredMinutes > availableMinutes) {
-                $status.html('<span class="status-error">❌ Insufficient Time</span>');
-                $calculator.addClass('error');
-                
-                // Generate smart suggestions
-                var suggestions = KSM_PS_Admin.generateSmartSuggestions(availableMinutes, requiredMinutes, postsPerDay, minInterval);
-                $suggestions.html('<h5>💡 Smart Suggestions:</h5>' + suggestions);
-            } else {
-                var extraTime = availableMinutes - requiredMinutes;
-                $status.html('<span class="status-success">✅ Perfect! ' + Math.floor(extraTime / 60) + 'h ' + (extraTime % 60) + 'm extra</span>');
-                $calculator.removeClass('error');
-                $suggestions.empty();
-            }
-        },
+         updateTimeCalculator: function() {
+             var startTime = $('#ksm_ps_start_time').val();
+             var endTime = $('#ksm_ps_end_time').val();
+             var postsPerDay = parseInt($('#ksm_ps_posts_per_day').val()) || 5;
+             var minInterval = parseInt($('#ksm_ps_min_interval').val()) || 30;
+             
+             // Remove existing calculator
+             $('.ksm-time-calculator').remove();
+             
+             if (!startTime || !endTime) {
+                 return;
+             }
+             
+             var startMinutes = this.time12ToMinutes(startTime);
+             var endMinutes = this.time12ToMinutes(endTime);
+             
+             if (startMinutes >= endMinutes) {
+                 return;
+             }
+             
+             var availableMinutes = endMinutes - startMinutes;
+             var requiredMinutes = (postsPerDay - 1) * minInterval;
+             var maxPossiblePosts = Math.floor(availableMinutes / minInterval) + 1;
+             
+             // Get posts waiting count for comprehensive validation
+             var postsWaiting = parseInt($('.ksm-ps-count').text()) || 0;
+             
+             var calculatorHtml = '<div class="ksm-time-calculator" style="margin-top: 15px; padding: 15px; background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 8px;">';
+             calculatorHtml += '<h4 style="margin: 0 0 10px 0; color: #2c3e50;">📊 Time Analysis & Scheduling Validation</h4>';
+             
+             // Basic time analysis
+             calculatorHtml += '<div style="margin-bottom: 10px;">';
+             calculatorHtml += '<strong>Available time window:</strong> ' + availableMinutes + ' minutes<br>';
+             calculatorHtml += '<strong>Required time for ' + postsPerDay + ' posts:</strong> ' + requiredMinutes + ' minutes<br>';
+             calculatorHtml += '<strong>Maximum posts possible:</strong> ' + maxPossiblePosts + ' posts per day';
+             calculatorHtml += '</div>';
+             
+             // Status and warnings
+             var hasWarnings = false;
+             var criticalWarnings = [];
+             var suggestions = [];
+             
+             if (postsPerDay > maxPossiblePosts) {
+                 hasWarnings = true;
+                 criticalWarnings.push('⚠️ <strong>CRITICAL:</strong> Your time window is too narrow for ' + postsPerDay + ' posts per day!');
+                 criticalWarnings.push('With a ' + minInterval + '-minute interval, you can only schedule ' + maxPossiblePosts + ' posts per day.');
+                 
+                 suggestions.push({
+                     text: 'Reduce posts per day to ' + maxPossiblePosts,
+                     action: 'reduce-posts',
+                     value: maxPossiblePosts
+                 });
+                 
+                 var extendedEndTime = this.addMinutesToTime(endTime, requiredMinutes - availableMinutes + 30);
+                 if (extendedEndTime) {
+                     suggestions.push({
+                         text: 'Extend end time to ' + extendedEndTime,
+                         action: 'extend-time',
+                         value: extendedEndTime
+                     });
+                 }
+                 
+                 var newInterval = Math.floor(availableMinutes / (postsPerDay - 1));
+                 if (newInterval >= 5) {
+                     suggestions.push({
+                         text: 'Reduce interval to ' + newInterval + ' minutes',
+                         action: 'reduce-interval',
+                         value: newInterval
+                     });
+                 }
+             }
+             
+             // Multi-day scheduling validation
+             if (postsWaiting > 0) {
+                 var effectivePostsPerDay = Math.min(postsPerDay, maxPossiblePosts);
+                 var daysNeeded = Math.ceil(postsWaiting / effectivePostsPerDay);
+                 
+                 calculatorHtml += '<div style="margin: 15px 0; padding: 10px; background: #e8f4f8; border-left: 4px solid #17a2b8; border-radius: 4px;">';
+                 calculatorHtml += '<strong>📅 Multi-Day Scheduling Analysis:</strong><br>';
+                 calculatorHtml += 'Posts waiting: ' + postsWaiting + '<br>';
+                 calculatorHtml += 'Effective posts per day: ' + effectivePostsPerDay + '<br>';
+                 calculatorHtml += 'Days needed: ' + daysNeeded + '<br>';
+                 
+                 if (effectivePostsPerDay < postsPerDay) {
+                     hasWarnings = true;
+                     criticalWarnings.push('⚠️ <strong>SCHEDULING LIMITATION:</strong> Only ' + effectivePostsPerDay + ' out of ' + postsPerDay + ' posts will be scheduled per day due to time constraints!');
+                     criticalWarnings.push('This means it will take ' + daysNeeded + ' days instead of ' + Math.ceil(postsWaiting / postsPerDay) + ' days to schedule all ' + postsWaiting + ' posts.');
+                 }
+                 
+                 calculatorHtml += '</div>';
+             }
+             
+             // Display warnings
+             if (hasWarnings) {
+                 calculatorHtml += '<div style="margin: 10px 0; padding: 10px; background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 4px; color: #856404;">';
+                 criticalWarnings.forEach(function(warning) {
+                     calculatorHtml += '<div style="margin-bottom: 8px;">' + warning + '</div>';
+                 });
+                 calculatorHtml += '</div>';
+                 
+                 // Add suggestions
+                 if (suggestions.length > 0) {
+                     calculatorHtml += '<div style="margin: 10px 0;">';
+                     calculatorHtml += '<strong>💡 Smart Suggestions:</strong><br>';
+                     suggestions.forEach(function(suggestion) {
+                         calculatorHtml += '<button type="button" class="button button-secondary ksm-suggestion-btn" ';
+                         calculatorHtml += 'data-action="' + suggestion.action + '" data-value="' + suggestion.value + '" ';
+                         calculatorHtml += 'style="margin: 2px 5px 2px 0; font-size: 12px;">';
+                         calculatorHtml += suggestion.text + '</button>';
+                     });
+                     calculatorHtml += '</div>';
+                 }
+                 
+                 calculatorHtml += '<div style="margin-top: 10px; padding: 8px; background: #f8d7da; border: 1px solid #f5c6cb; border-radius: 4px; color: #721c24;">';
+                 calculatorHtml += '<strong>🚫 Manual Scheduling Warning:</strong> Running manual scheduling with these settings may result in incomplete scheduling. Please fix the issues above first.';
+                 calculatorHtml += '</div>';
+             } else {
+                 calculatorHtml += '<div style="margin: 10px 0; padding: 10px; background: #d4edda; border: 1px solid #c3e6cb; border-radius: 4px; color: #155724;">';
+                 calculatorHtml += '✅ <strong>Settings Valid:</strong> Your time window is sufficient for ' + postsPerDay + ' posts per day.';
+                 calculatorHtml += '</div>';
+             }
+             
+             calculatorHtml += '</div>';
+             
+             // Insert after the minimum interval field
+             $('#ksm_ps_min_interval').closest('tr').after(calculatorHtml);
+             
+             // Store validation state for manual scheduling
+             window.ksmSchedulingValid = !hasWarnings;
+             window.ksmValidationWarnings = criticalWarnings;
+             
+             // Bind suggestion button events
+             $('.ksm-suggestion-btn').on('click', this.applySuggestion);
+         },
         
         /**
          * Generate smart suggestions for time conflicts

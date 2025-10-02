@@ -2,6 +2,64 @@
 
 All notable changes to the KSM Post Scheduler plugin will be documented in this file.
 
+## [1.9.0] - 02/10/2025
+
+### Added
+- **Real-Time Validation Warnings**: Implemented comprehensive real-time validation in admin interface
+  - Added "Time Analysis & Scheduling Validation" section that dynamically calculates scheduling feasibility
+  - Real-time warnings when time window is too narrow for specified posts per day
+  - Multi-day scheduling analysis showing days needed and effective posts per day
+  - Smart suggestions to resolve time conflicts (reduce posts, extend time window, reduce interval)
+  - Visual indicators for scheduling validity with detailed warning messages
+
+### Enhanced
+- **Pre-Scheduling Validation**: Added comprehensive validation before manual scheduling execution
+  - Prevents manual scheduling when settings would result in incomplete scheduling
+  - Displays detailed error messages with actionable suggestions
+  - Form validation checks for time inputs, posts per day, and minimum intervals
+  - Integration with real-time validation system for consistent user feedback
+
+### Fixed
+- **Duplicate Progress Reports**: Resolved issue where multiple progress reports could appear after manual scheduling
+  - Added proper DOM clearing before displaying new results
+  - Implemented request deduplication to prevent multiple simultaneous AJAX calls
+  - Enhanced result container management with proper class and content clearing
+  - Fixed AJAX response handling to ensure single progress report display
+
+### Improved
+- **Error Handling**: Enhanced error handling throughout the admin interface
+  - Better timeout handling for long-running scheduling operations (60-second timeout)
+  - Improved error messages with specific status codes and descriptions
+  - WordPress-style notice formatting for all success and error messages
+  - Automatic status refresh after successful manual scheduling
+
+### Technical
+- **JavaScript Enhancements**: Improved admin.js functionality
+  - Added `window.ksmSchedulingValid` and `window.ksmValidationWarnings` global state tracking
+  - Enhanced `updateTimeCalculator()` function with comprehensive validation logic
+  - Improved `runNow()` function with better error handling and duplicate prevention
+  - Fixed AJAX variable references and response data structure handling
+
+## [1.8.9] - 02/10/2025
+
+### Removed
+- **Custom "Ready to Schedule" Status**: Completely removed the custom post status functionality
+  - Removed `register_custom_post_status()` method and its registration
+  - Removed all Gutenberg-related methods and REST API integrations
+  - Removed `gutenberg-status.js` file entirely
+  - Cleaned up all references to `ksm_scheduled` status throughout the codebase
+  - Updated default post status monitoring to use 'draft' instead of custom status
+  - Simplified admin interface by removing custom status explanations
+
+### Changed
+- **Default Configuration**: Plugin now defaults to monitoring 'draft' posts instead of custom status
+- **Admin Interface**: Updated status selection dropdown and descriptions to reflect removal of custom status
+- **Code Simplification**: Streamlined codebase by removing complex custom status integration code
+
+### Note
+- Users requiring advanced post status management should use dedicated third-party plugins
+- Existing posts with custom status will need to be manually updated to standard WordPress statuses
+
 ## [1.8.8] - 02/10/2025
 
 ### Fixed
