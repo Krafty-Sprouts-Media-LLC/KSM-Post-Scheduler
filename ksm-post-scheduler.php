@@ -3,7 +3,7 @@
  * Plugin Name: KSM Post Scheduler
  * Plugin URI: https://kraftysprouts.com
  * Description: Automatically schedules posts from a specific status to publish at random times
- * Version: 1.6.6
+ * Version: 1.8.0
  * Author: Krafty Sprouts Media, LLC
  * Author URI: https://kraftysprouts.com
  * License: GPL v2 or later
@@ -16,7 +16,7 @@
  * Network: false
  * 
  * @package KSM_Post_Scheduler
- * @version 1.6.5
+ * @version 1.8.0
  * @author KraftySpoutsMedia, LLC
  * @copyright 2025 KraftySpouts
  * @license GPL-2.0-or-later
@@ -124,6 +124,9 @@ class KSM_PS_Main {
         // Dynamic publication hooks (registered for each scheduled post)
         add_action('init', array($this, 'register_publication_hooks'));
         
+        // Custom post status registration
+        add_action('init', array($this, 'register_custom_post_status'));
+        
         // AJAX hooks
         add_action('wp_ajax_ksm_ps_run_now', array($this, 'ajax_run_now'));
         add_action('wp_ajax_ksm_ps_get_status', array($this, 'ajax_get_status'));
@@ -150,12 +153,16 @@ class KSM_PS_Main {
         // Set default options
         $default_options = array(
             'enabled' => false,
-            'post_status' => 'draft',
+            'post_status' => 'ksm_scheduled',
             'posts_per_day' => 5,
             'start_time' => '9:00 AM',
             'end_time' => '6:00 PM',
             'days_active' => array('monday', 'tuesday', 'wednesday', 'thursday', 'friday'),
             'min_interval' => 30,
+            'randomize_authors' => false,
+            'allowed_author_roles' => array('author', 'editor', 'administrator'),
+            'excluded_users' => array(),
+            'assignment_strategy' => 'random',
             'version' => KSM_PS_VERSION,
             'installed_date' => current_time('mysql')
         );
@@ -221,6 +228,20 @@ class KSM_PS_Main {
             wp_clear_scheduled_hook($hook_name);
         }
         
+        // Convert posts from custom status back to draft
+        $custom_status_posts = get_posts(array(
+            'post_status' => 'ksm_scheduled',
+            'numberposts' => -1,
+            'post_type' => 'post'
+        ));
+        
+        foreach ($custom_status_posts as $post) {
+            wp_update_post(array(
+                'ID' => $post->ID,
+                'post_status' => 'draft'
+            ));
+        }
+        
         // Clear any transients
         delete_transient('ksm_ps_status_cache');
         delete_transient('ksm_ps_upcoming_posts');
@@ -243,6 +264,27 @@ class KSM_PS_Main {
         if (defined('WP_DEBUG') && WP_DEBUG) {
             error_log('KSM Post Scheduler: Uninstall hook called.');
         }
+    }
+    
+    /**
+     * Register custom post status for scheduled posts
+     * 
+     * @since 1.7.0
+     */
+    public function register_custom_post_status() {
+        register_post_status('ksm_scheduled', array(
+            'label'                     => _x('Scheduled for Publishing', 'post status', 'ksm-post-scheduler'),
+            'public'                    => false,
+            'exclude_from_search'       => true,
+            'show_in_admin_all_list'    => true,
+            'show_in_admin_status_list' => true,
+            'label_count'               => _n_noop(
+                'Scheduled for Publishing <span class="count">(%s)</span>',
+                'Scheduled for Publishing <span class="count">(%s)</span>',
+                'ksm-post-scheduler'
+            ),
+            'post_type'                 => array('post'),
+        ));
     }
     
     /**
@@ -287,21 +329,7 @@ class KSM_PS_Main {
         $screen = get_current_screen();
         if ($screen && $screen->id === 'settings_page_ksm-post-scheduler') {
             $current_options = get_option($this->option_name, array());
-            $current_wp_time = current_time('Y-m-d H:i:s');
-            $current_server_time = date('Y-m-d H:i:s');
-            $timezone = get_option('timezone_string');
-            $gmt_offset = get_option('gmt_offset');
-            ?>
-            <div class="notice notice-warning">
-                <h3>🐛 DEBUG INFO (Temporary)</h3>
-                <p><strong>Current WordPress Time:</strong> <?php echo esc_html($current_wp_time); ?></p>
-                <p><strong>Current Server Time:</strong> <?php echo esc_html($current_server_time); ?></p>
-                <p><strong>WordPress Timezone:</strong> <?php echo esc_html($timezone ?: 'Not set'); ?></p>
-                <p><strong>GMT Offset:</strong> <?php echo esc_html($gmt_offset); ?></p>
-                <p><strong>Plugin Settings:</strong></p>
-                <pre style="background: #f1f1f1; padding: 10px; overflow: auto;"><?php echo esc_html(print_r($current_options, true)); ?></pre>
-            </div>
-            <?php
+
         }
     }
     
@@ -491,6 +519,53 @@ class KSM_PS_Main {
             }
         }
         
+        // Sanitize author assignment settings
+        $sanitized['randomize_authors'] = isset($input['randomize_authors']) ? (bool) $input['randomize_authors'] : false;
+        
+        // Sanitize assignment strategy
+        $valid_strategies = array('random', 'round_robin');
+        $sanitized['assignment_strategy'] = isset($input['assignment_strategy']) && in_array($input['assignment_strategy'], $valid_strategies) 
+            ? sanitize_text_field($input['assignment_strategy']) 
+            : 'random';
+        
+        // Sanitize allowed author roles
+        $sanitized['allowed_author_roles'] = array();
+        if (isset($input['allowed_author_roles']) && is_array($input['allowed_author_roles'])) {
+            global $wp_roles;
+            $valid_roles = array_keys($wp_roles->roles);
+            
+            foreach ($input['allowed_author_roles'] as $role) {
+                $role = sanitize_text_field($role);
+                if (in_array($role, $valid_roles)) {
+                    // Check if role has edit_posts capability
+                    $role_obj = get_role($role);
+                    if ($role_obj && $role_obj->has_cap('edit_posts')) {
+                        $sanitized['allowed_author_roles'][] = $role;
+                    }
+                }
+            }
+            
+            // If no valid roles selected but randomize_authors is enabled, add warning
+            if ($sanitized['randomize_authors'] && empty($sanitized['allowed_author_roles'])) {
+                $validation_errors[] = __('Author randomization is enabled but no valid author roles are selected. Please select at least one role with edit_posts capability.', 'ksm-post-scheduler');
+                $sanitized['randomize_authors'] = false; // Disable if no valid roles
+            }
+        } else if ($sanitized['randomize_authors']) {
+            // If randomize_authors is enabled but no roles provided, use defaults
+            $sanitized['allowed_author_roles'] = array('author', 'editor', 'administrator');
+        }
+        
+        // Sanitize excluded users
+        $sanitized['excluded_users'] = array();
+        if (isset($input['excluded_users']) && is_array($input['excluded_users'])) {
+            foreach ($input['excluded_users'] as $user_id) {
+                $user_id = absint($user_id);
+                if ($user_id > 0 && get_userdata($user_id)) {
+                    $sanitized['excluded_users'][] = $user_id;
+                }
+            }
+        }
+        
         // If there are validation errors, add them as settings errors
         if (!empty($validation_errors)) {
             foreach ($validation_errors as $error) {
@@ -505,7 +580,7 @@ class KSM_PS_Main {
         
         // Check if posts_per_day has changed and there are scheduled posts
         if ($current_posts_per_day !== $sanitized['posts_per_day']) {
-            error_log("KSM DEBUG - Posts per day changed from $current_posts_per_day to {$sanitized['posts_per_day']}");
+            
             
             // Schedule the re-adjustment to run after the settings are saved
             add_action('updated_option_' . $this->option_name, array($this, 'handle_posts_per_day_change'), 10, 2);
@@ -540,7 +615,7 @@ class KSM_PS_Main {
      * @since 1.1.5
      */
     public function handle_posts_per_day_change($old_value, $new_value) {
-        error_log("KSM DEBUG - Handling posts per day change - re-adjusting scheduled posts");
+        
         
         // Re-adjust existing scheduled posts with new posts per day setting
         $result = $this->readjust_scheduled_posts();
@@ -574,6 +649,11 @@ class KSM_PS_Main {
         
         $options = get_option($this->option_name, array());
         $post_statuses = get_post_stati(array('public' => false), 'objects');
+        
+        // Ensure our custom status is included
+        if (!isset($post_statuses['ksm_scheduled'])) {
+            $post_statuses['ksm_scheduled'] = get_post_status_object('ksm_scheduled');
+        }
         
         // Get current status
         $monitored_count = $this->get_monitored_posts_count();
@@ -677,7 +757,7 @@ class KSM_PS_Main {
             return array('success' => true, 'message' => 'No scheduled posts to re-adjust.');
         }
         
-        error_log("KSM DEBUG - Re-adjusting " . count($scheduled_posts) . " scheduled posts with new posts_per_day: $posts_per_day");
+
         
         // Reset all scheduled posts to draft status first
         foreach ($scheduled_posts as $post) {
@@ -721,7 +801,7 @@ class KSM_PS_Main {
     public function publish_scheduled_post($post_id) {
         global $wpdb;
         
-        error_log("KSM DEBUG - Publishing scheduled post $post_id");
+
         
         // Update post status to published directly in database
         $update_result = $wpdb->update(
@@ -743,9 +823,9 @@ class KSM_PS_Main {
             // Trigger WordPress publish actions
             do_action('publish_post', $post_id, get_post($post_id));
             
-            error_log("KSM DEBUG - Successfully published post $post_id");
+            // Post published successfully
         } else {
-            error_log("KSM DEBUG - ERROR: Failed to publish post $post_id");
+            // Failed to publish post
         }
     }
 
@@ -783,8 +863,11 @@ class KSM_PS_Main {
         $min_interval = $options['min_interval'] ?? 30;
         $days_active = $options['days_active'] ?? array('monday', 'tuesday', 'wednesday', 'thursday', 'friday');
         
+
+        
         // Initialize progress tracking for manual runs
         $progress_report = array();
+        $scheduled_posts_details = array(); // For chronological sorting
         $total_posts_to_schedule = count($posts);
         
         // Convert start and end times to minutes for easier calculation
@@ -798,23 +881,14 @@ class KSM_PS_Main {
         $current_time_minutes = (int)current_time('H') * 60 + (int)current_time('i');
         
         // DEBUG: Log current settings and time
-        error_log("KSM DEBUG - Current WP Time: $current_wp_time");
-        error_log("KSM DEBUG - Current Date: $current_date");
-        error_log("KSM DEBUG - Current Time Minutes: $current_time_minutes");
-        error_log("KSM DEBUG - Start Time: $start_time ($start_minutes minutes)");
-        error_log("KSM DEBUG - End Time: $end_time ($end_minutes minutes)");
-        error_log("KSM DEBUG - Posts Per Day: $posts_per_day");
-        error_log("KSM DEBUG - Is Cron Run: " . ($is_cron_run ? 'Yes' : 'No'));
-        error_log("KSM DEBUG - Max Posts to Schedule: $max_posts_to_schedule");
-        error_log("KSM DEBUG - Total Posts Available: " . count($posts));
+
         
         $scheduled_count = 0;
         $current_day_offset = 0;
         $posts_scheduled_for_current_day = 0;
         
         // Both manual and cron scheduling now work identically - distribute across multiple days
-        error_log("KSM DEBUG - Scheduling mode: " . ($is_cron_run ? "Automatic cron" : "Manual") . " - distributing posts across future dates");
-        error_log("KSM DEBUG - Will schedule up to " . count($posts) . " posts across multiple days respecting daily limits");
+
         
         // Determine if we can schedule posts today
         $can_schedule_today = false;
@@ -837,55 +911,54 @@ class KSM_PS_Main {
                 
                 if ($possible_posts_today > 0 && $effective_start_time <= $latest_scheduling_time) {
                     $can_schedule_today = true;
-                    error_log("KSM DEBUG - Can schedule $possible_posts_today posts today");
-                    error_log("KSM DEBUG - Effective start time today: " . $this->minutes_to_time($effective_start_time));
-                    error_log("KSM DEBUG - Latest scheduling time: " . $this->minutes_to_time($latest_scheduling_time));
-                    error_log("KSM DEBUG - Remaining time: $remaining_time_today minutes");
-                } else {
-                    error_log("KSM DEBUG - Cannot schedule posts today - not enough time remaining after considering start time");
-                    error_log("KSM DEBUG - Effective start: " . $this->minutes_to_time($effective_start_time) . ", Latest: " . $this->minutes_to_time($latest_scheduling_time));
                 }
-            } else {
-                error_log("KSM DEBUG - Cannot schedule posts today - current time ($current_time_minutes min) is past latest scheduling time ($latest_scheduling_time min)");
             }
-        } else {
-            error_log("KSM DEBUG - Cannot schedule posts today - not an active day ($today_name)");
         }
         
         // For manual scheduling, allow scheduling across future dates just like cron runs
         // Remove the restriction that limited manual scheduling to current day only
         if (!$is_cron_run && !$can_schedule_today) {
-            error_log("KSM DEBUG - Manual scheduling: Cannot schedule today, will start from next valid day");
             // Don't return error - continue to schedule across future dates
             $current_day_offset = 1; // Start from tomorrow
             $posts_scheduled_for_current_day = 0;
-        }
-        
-        // Log the starting point
-        if (!$can_schedule_today) {
-            error_log("KSM DEBUG - Starting from tomorrow (day offset: $current_day_offset, will be calculated by get_next_valid_day)");
-        } else {
-            error_log("KSM DEBUG - Starting from today (day offset: $current_day_offset)");
         }
         
         // Pre-generate schedules for each day as needed
         $daily_schedules = array();
         
         foreach ($posts as $index => $post) {
-            error_log("KSM DEBUG - Processing post {$post->ID} '{$post->post_title}' (index: $index)");
-            error_log("KSM DEBUG - Current state: day_offset=$current_day_offset, posts_for_current_day=$posts_scheduled_for_current_day/$posts_per_day");
-            
             // CONSOLIDATED DAY-CHANGE LOGIC: Check if we need to move to the next day
             if ($posts_scheduled_for_current_day >= $posts_per_day) {
-                error_log("KSM DEBUG - Daily limit reached ($posts_scheduled_for_current_day/$posts_per_day), moving to next day");
                 
                 // Add progress report for manual runs
                 if (!$is_cron_run && isset($target_date)) {
                     $progress_report[] = "✓ Daily limit reached for " . wp_date('l, M j', strtotime($target_date)) . " - Moving to next day";
                 }
                 
-                // Move to next valid day
-                $current_day_offset++;
+                // CRITICAL FIX: Move to next ACTIVE day, not just increment offset
+                // Find the next active day by checking each subsequent day
+                $next_active_day_found = false;
+                $test_offset = $current_day_offset + 1;
+                
+                while (!$next_active_day_found && $test_offset < $current_day_offset + 14) { // Prevent infinite loop
+                    $test_timestamp = $this->get_next_valid_day($test_offset, $days_active, $can_schedule_today);
+                    $test_date = wp_date('Y-m-d', $test_timestamp);
+                    
+                    // Check if this is a different date than current target_date
+                    if (!isset($target_date) || $test_date !== $target_date) {
+                        $current_day_offset = $test_offset;
+                        $next_active_day_found = true;
+                        error_log("KSM DEBUG - Found next active day at offset $current_day_offset (date: $test_date)");
+                        break;
+                    }
+                    $test_offset++;
+                }
+                
+                if (!$next_active_day_found) {
+                    error_log("KSM DEBUG - ERROR: Could not find next active day, using simple increment");
+                    $current_day_offset++;
+                }
+                
                 $posts_scheduled_for_current_day = 0;
                 error_log("KSM DEBUG - Advanced to day_offset=$current_day_offset, reset posts_for_current_day=0");
             }
@@ -1015,12 +1088,68 @@ class KSM_PS_Main {
             error_log("KSM DEBUG - Using WordPress functions for proper post scheduling");
             error_log("KSM DEBUG - Scheduling data: ID={$post->ID}, status=future, date=$scheduled_time_mysql, date_gmt=$scheduled_time_gmt");
             
+            // Determine author for this post (author assignment logic)
+            $original_author_id = $post->post_author;
+            $assigned_author_id = $original_author_id; // Default to original author
+            $author_changed = false;
+            
+            // Check if author randomization is enabled
+            if ($options['randomize_authors'] ?? false) {
+                $assignment_strategy = $options['assignment_strategy'] ?? 'random';
+                
+                if ($assignment_strategy === 'random') {
+                    // Use the helper method to get a random author
+                    $assigned_author_id = $this->get_random_author($original_author_id);
+                } else if ($assignment_strategy === 'round_robin') {
+                    // Round-robin assignment using allowed roles
+                    $allowed_roles = $options['allowed_author_roles'] ?? array('author', 'editor', 'administrator');
+                    $excluded_users = $options['excluded_users'] ?? array();
+                    
+                    if (!empty($allowed_roles)) {
+                        // Get users with allowed roles for round-robin
+                        $rotation_users = get_users(array(
+                            'role__in' => $allowed_roles,
+                            'fields' => 'ID',
+                            'number' => 100
+                        ));
+                        
+                        // Filter out the current author and excluded users
+                        $rotation_users = array_filter($rotation_users, function($user_id) use ($original_author_id, $excluded_users) {
+                            return $user_id != $original_author_id && !in_array($user_id, $excluded_users);
+                        });
+                        
+                        if (!empty($rotation_users)) {
+                            // Get current rotation index
+                            $current_user_index = get_option('ksm_ps_current_user_index', 0);
+                            
+                            // Ensure index is within bounds
+                            if ($current_user_index >= count($rotation_users)) {
+                                $current_user_index = 0;
+                            }
+                            
+                            $assigned_author_id = $rotation_users[$current_user_index];
+                            
+                            // Advance to next user for next post
+                            $current_user_index = ($current_user_index + 1) % count($rotation_users);
+                            update_option('ksm_ps_current_user_index', $current_user_index);
+                        }
+                    }
+                }
+                
+                $author_changed = ($assigned_author_id != $original_author_id);
+                
+                if ($author_changed) {
+                    error_log("KSM Post Scheduler: Post {$post->ID}: Changed author from {$original_author_id} to {$assigned_author_id} using {$assignment_strategy} strategy");
+                }
+            }
+            
             // Use wp_update_post with proper future timestamps (no hook workarounds needed)
             $post_data = array(
                 'ID' => $post->ID,
                 'post_status' => 'future',
                 'post_date' => $scheduled_time_mysql,
                 'post_date_gmt' => $scheduled_time_gmt,
+                'post_author' => $assigned_author_id,
                 'edit_date' => true // This tells WordPress we're explicitly setting the date
             );
             
@@ -1053,7 +1182,36 @@ class KSM_PS_Main {
                 // Add progress tracking for manual runs
                 if (!$is_cron_run) {
                     $post_title = strlen($post->post_title) > 30 ? substr($post->post_title, 0, 30) . '...' : $post->post_title;
-                    $progress_report[] = "  ✓ Assigned post #{$scheduled_count}: \"{$post_title}\" to {$scheduled_time_str}";
+                    
+                    // Get author information for progress report
+                    $author_info = '';
+                    if ($randomize_authors && $author_changed) {
+                        $original_author = get_userdata($original_author_id);
+                        $assigned_author = get_userdata($assigned_author_id);
+                        $author_info = sprintf(
+                            ' [Author: %s → %s]',
+                            $original_author ? $original_author->display_name : 'Unknown',
+                            $assigned_author ? $assigned_author->display_name : 'Unknown'
+                        );
+                    } elseif ($randomize_authors) {
+                        $assigned_author = get_userdata($assigned_author_id);
+                        $author_info = sprintf(
+                            ' [Author: %s]',
+                            $assigned_author ? $assigned_author->display_name : 'Unknown'
+                        );
+                    }
+                    
+                    $scheduled_posts_details[] = array(
+                        'post_number' => $scheduled_count,
+                        'title' => $post_title,
+                        'time_str' => $scheduled_time_str,
+                        'timestamp' => $scheduled_timestamp,
+                        'date' => $target_date,
+                        'author_info' => $author_info,
+                        'author_changed' => $author_changed,
+                        'original_author_id' => $original_author_id,
+                        'assigned_author_id' => $assigned_author_id
+                    );
                 }
                 
                 error_log("KSM DEBUG - ✓ Successfully scheduled post {$post->ID} for $scheduled_time_mysql");
@@ -1073,13 +1231,39 @@ class KSM_PS_Main {
             $message .= " (Manual scheduling - distributed across future dates)";
             
             // Add detailed progress report for manual runs
-            if (!empty($progress_report)) {
+            if (!empty($scheduled_posts_details)) {
+                // Sort posts by timestamp for chronological order
+                usort($scheduled_posts_details, function($a, $b) {
+                    return $a['timestamp'] - $b['timestamp'];
+                });
+                
+                // Group posts by date and build progress report
+                $grouped_posts = array();
+                foreach ($scheduled_posts_details as $post_detail) {
+                    $date_key = $post_detail['date'];
+                    if (!isset($grouped_posts[$date_key])) {
+                        $grouped_posts[$date_key] = array();
+                    }
+                    $grouped_posts[$date_key][] = $post_detail;
+                }
+                
                 $message .= "\n\n📊 SCHEDULING PROGRESS REPORT:\n";
                 $message .= "Total posts processed: {$total_posts_to_schedule}\n";
                 $message .= "Posts successfully scheduled: {$scheduled_count}\n\n";
                 $message .= "Day-by-day breakdown:\n";
-                $message .= implode("\n", $progress_report);
-                $message .= "\n\n✅ All posts have been scheduled according to your daily limits and time windows.";
+                
+                foreach ($grouped_posts as $date => $posts) {
+                    $day_name = wp_date('l, M j', strtotime($date));
+                    $post_count = count($posts);
+                    $message .= "📅 {$day_name} - Can schedule {$post_count} posts today\n";
+                    
+                    foreach ($posts as $post_detail) {
+                        $message .= "  ✓ Assigned post #{$post_detail['post_number']}: \"{$post_detail['title']}\" to {$post_detail['time_str']}{$post_detail['author_info']}\n";
+                    }
+                    $message .= "\n";
+                }
+                
+                $message .= "✅ All posts have been scheduled according to your daily limits and time windows.";
             }
         } else {
             $message .= " (Automatic scheduling - daily limits applied)";
@@ -1213,6 +1397,54 @@ class KSM_PS_Main {
             }
         }
         return false;
+    }
+    
+    /**
+     * Get a random author from allowed roles, excluding specified author
+     * 
+     * @param int $exclude_author_id Author ID to exclude from selection
+     * @return int Author ID (original if no valid alternatives found)
+     * @since 1.6.9
+     */
+    private function get_random_author($exclude_author_id) {
+        $options = get_option($this->option_name, array());
+        $allowed_roles = $options['allowed_author_roles'] ?? array('author', 'editor', 'administrator');
+        $excluded_users = $options['excluded_users'] ?? array();
+        
+        if (empty($allowed_roles)) {
+            return $exclude_author_id; // Return original if no roles configured
+        }
+        
+        // Get users with allowed roles
+        $users = get_users(array(
+            'role__in' => $allowed_roles,
+            'fields' => 'ID',
+            'number' => 100 // Reasonable limit to prevent memory issues
+        ));
+        
+        if (empty($users)) {
+            error_log('KSM Post Scheduler: No users found with allowed author roles: ' . implode(', ', $allowed_roles));
+            return $exclude_author_id;
+        }
+        
+        // Filter out the excluded author and excluded users
+        $available_users = array_filter($users, function($user_id) use ($exclude_author_id, $excluded_users) {
+            return $user_id != $exclude_author_id && !in_array($user_id, $excluded_users);
+        });
+        
+        // If no alternative users available, return original
+        if (empty($available_users)) {
+            error_log('KSM Post Scheduler: No alternative authors available after excluding author ID: ' . $exclude_author_id);
+            return $exclude_author_id;
+        }
+        
+        // Randomly select an author
+        $random_key = array_rand($available_users);
+        $selected_author_id = $available_users[$random_key];
+        
+        error_log('KSM Post Scheduler: Selected random author ID ' . $selected_author_id . ' (excluded: ' . $exclude_author_id . ')');
+        
+        return $selected_author_id;
     }
     
     /**

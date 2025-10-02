@@ -67,11 +67,11 @@ if (!defined('ABSPATH')) {
                                 <select id="ksm_ps_post_status" name="<?php echo esc_attr($this->option_name); ?>[post_status]">
                                     <?php foreach ($post_statuses as $status_key => $status_obj): ?>
                                         <option value="<?php echo esc_attr($status_key); ?>" 
-                                                <?php selected($options['post_status'] ?? 'draft', $status_key); ?>>
+                                                <?php selected($options['post_status'] ?? 'ksm_scheduled', $status_key); ?>>
                                             <?php echo esc_html($status_obj->label); ?>
                                         </option>
                                     <?php endforeach; ?>
-                                    <option value="draft" <?php selected($options['post_status'] ?? 'draft', 'draft'); ?>>
+                                    <option value="draft" <?php selected($options['post_status'] ?? 'ksm_scheduled', 'draft'); ?>>
                                         <?php _e('Draft', 'ksm-post-scheduler'); ?>
                                     </option>
                                 </select>
@@ -190,6 +190,133 @@ if (!defined('ABSPATH')) {
                     </tbody>
                 </table>
                 
+                <!-- Author Assignment Settings -->
+                <h2><?php _e('Author Assignment Settings', 'ksm-post-scheduler'); ?></h2>
+                <p><?php _e('Automatically assign scheduled posts to different authors. This helps distribute content across multiple users and prevents all posts from having the same author.', 'ksm-post-scheduler'); ?></p>
+                
+                <table class="form-table">
+                    <tbody>
+                        <!-- Randomize Authors -->
+                        <tr>
+                            <th scope="row">
+                                <label for="ksm_ps_randomize_authors"><?php _e('Randomize Post Authors', 'ksm-post-scheduler'); ?></label>
+                            </th>
+                            <td>
+                                <label class="ksm-ps-switch">
+                                    <input type="checkbox" 
+                                           id="ksm_ps_randomize_authors" 
+                                           name="<?php echo esc_attr($this->option_name); ?>[randomize_authors]" 
+                                           value="1" 
+                                           <?php checked($options['randomize_authors'] ?? false, true); ?>>
+                                    <span class="ksm-ps-slider"></span>
+                                </label>
+                                <p class="description"><?php _e('Randomly assign a different author to posts when scheduling (excludes current author).', 'ksm-post-scheduler'); ?></p>
+                            </td>
+                        </tr>
+                        
+                        <!-- Assignment Strategy -->
+                        <tr>
+                            <th scope="row">
+                                <label for="ksm_ps_assignment_strategy"><?php _e('Assignment Strategy', 'ksm-post-scheduler'); ?></label>
+                            </th>
+                            <td>
+                                <select id="ksm_ps_assignment_strategy" 
+                                        name="<?php echo esc_attr($this->option_name); ?>[assignment_strategy]">
+                                    <option value="random" <?php selected($options['assignment_strategy'] ?? 'random', 'random'); ?>>
+                                        <?php _e('Random Assignment (Different author each time)', 'ksm-post-scheduler'); ?>
+                                    </option>
+                                    <option value="round_robin" <?php selected($options['assignment_strategy'] ?? 'random', 'round_robin'); ?>>
+                                        <?php _e('Round Robin (User A → User B → User C → User A...)', 'ksm-post-scheduler'); ?>
+                                    </option>
+                                </select>
+                                <p class="description"><?php _e('Choose how posts are distributed among eligible authors.', 'ksm-post-scheduler'); ?></p>
+                            </td>
+                        </tr>
+                        
+                        <!-- Author Roles to Use -->
+                        <tr>
+                            <th scope="row">
+                                <label><?php _e('Author Roles to Use', 'ksm-post-scheduler'); ?></label>
+                            </th>
+                            <td>
+                                <fieldset>
+                                    <legend class="screen-reader-text"><?php _e('Select which user roles can be randomly assigned as authors', 'ksm-post-scheduler'); ?></legend>
+                                    <?php
+                                    // Get all WordPress roles
+                                    global $wp_roles;
+                                    $all_roles = $wp_roles->roles;
+                                    $allowed_roles = $options['allowed_author_roles'] ?? array('author', 'editor', 'administrator');
+                                    
+                                    // Filter roles that can edit posts
+                                    $eligible_roles = array();
+                                    foreach ($all_roles as $role_slug => $role_info) {
+                                        if (isset($role_info['capabilities']['edit_posts']) && $role_info['capabilities']['edit_posts']) {
+                                            $eligible_roles[$role_slug] = $role_info['name'];
+                                        }
+                                    }
+                                    
+                                    foreach ($eligible_roles as $role_slug => $role_name):
+                                    ?>
+                                        <label style="display: block; margin-bottom: 5px;">
+                                            <input type="checkbox" 
+                                                   name="<?php echo esc_attr($this->option_name); ?>[allowed_author_roles][]" 
+                                                   value="<?php echo esc_attr($role_slug); ?>" 
+                                                   <?php checked(in_array($role_slug, $allowed_roles), true); ?>>
+                                            <?php echo esc_html($role_name); ?>
+                                        </label>
+                                    <?php endforeach; ?>
+                                    <p class="description"><?php _e('Select which user roles can be randomly assigned as authors. Only roles with "edit_posts" capability are shown.', 'ksm-post-scheduler'); ?></p>
+                                </fieldset>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <th scope="row">
+                                <label for="ksm_ps_excluded_users"><?php _e('Exclude Individual Users', 'ksm-post-scheduler'); ?></label>
+                            </th>
+                            <td>
+                                <fieldset>
+                                    <legend class="screen-reader-text"><?php _e('Select individual users to exclude from author assignment', 'ksm-post-scheduler'); ?></legend>
+                                    <?php
+                                    // Get all users with allowed roles
+                                    $allowed_roles = $options['allowed_author_roles'] ?? array('author', 'editor', 'administrator');
+                                    $excluded_users = $options['excluded_users'] ?? array();
+                                    
+                                    if (!empty($allowed_roles)) {
+                                        $users = get_users(array(
+                                            'role__in' => $allowed_roles,
+                                            'orderby' => 'display_name',
+                                            'order' => 'ASC',
+                                            'number' => 100
+                                        ));
+                                        
+                                        if (!empty($users)) {
+                                            foreach ($users as $user) {
+                                                ?>
+                                                <label style="display: block; margin-bottom: 5px;">
+                                                    <input type="checkbox" 
+                                                           name="<?php echo esc_attr($this->option_name); ?>[excluded_users][]" 
+                                                           value="<?php echo esc_attr($user->ID); ?>" 
+                                                           <?php checked(in_array($user->ID, $excluded_users), true); ?>>
+                                                    <?php echo esc_html($user->display_name . ' (' . $user->user_login . ')'); ?>
+                                                </label>
+                                                <?php
+                                            }
+                                        } else {
+                                            echo '<p>' . __('No users found with the selected roles.', 'ksm-post-scheduler') . '</p>';
+                                        }
+                                    } else {
+                                        echo '<p>' . __('Please select allowed author roles first.', 'ksm-post-scheduler') . '</p>';
+                                    }
+                                    ?>
+                                    <p class="description"><?php _e('Select individual users to exclude from random author assignment. These users will never be assigned as authors even if they have the allowed roles.', 'ksm-post-scheduler'); ?></p>
+                                </fieldset>
+                            </td>
+                        </tr>
+
+                    </tbody>
+                </table>
+                
                 <?php submit_button(); ?>
             </form>
             
@@ -290,6 +417,38 @@ if (!defined('ABSPATH')) {
                         <strong><?php _e('Active days:', 'ksm-post-scheduler'); ?></strong>
                         <span><?php echo esc_html($scheduling_preview['active_days']); ?></span>
                     </div>
+                    
+                    <div class="ksm-ps-overview-item">
+                        <strong><?php _e('Author Assignment:', 'ksm-post-scheduler'); ?></strong>
+                        <span class="ksm-ps-status-indicator <?php echo ($options['randomize_authors'] ?? false) ? 'enabled' : 'disabled'; ?>">
+                            <?php echo ($options['randomize_authors'] ?? false) ? __('Enabled', 'ksm-post-scheduler') : __('Disabled', 'ksm-post-scheduler'); ?>
+                        </span>
+                    </div>
+                    
+                    <?php if ($options['randomize_authors'] ?? false): ?>
+                        <div class="ksm-ps-overview-item">
+                            <strong><?php _e('Assignment Strategy:', 'ksm-post-scheduler'); ?></strong>
+                            <span><?php echo esc_html(ucfirst(str_replace('_', ' ', $options['assignment_strategy'] ?? 'random'))); ?></span>
+                        </div>
+                        
+                        <div class="ksm-ps-overview-item">
+                            <strong><?php _e('Eligible Authors:', 'ksm-post-scheduler'); ?></strong>
+                            <span>
+                                <?php
+                                $allowed_roles = $options['allowed_author_roles'] ?? array();
+                                $eligible_count = 0;
+                                if (!empty($allowed_roles)) {
+                                    $users = get_users(array(
+                                        'role__in' => $allowed_roles,
+                                        'fields' => 'ID'
+                                    ));
+                                    $eligible_count = count($users);
+                                }
+                                echo esc_html($eligible_count) . ' ' . __('users', 'ksm-post-scheduler');
+                                ?>
+                            </span>
+                        </div>
+                    <?php endif; ?>
                 </div>
                 
                 <!-- Visual Separator -->

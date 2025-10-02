@@ -2,6 +2,77 @@
 
 All notable changes to the KSM Post Scheduler plugin will be documented in this file.
 
+## [1.8.0] - 02/10/2025
+
+### Added
+- **Custom Post Status**: Introduced dedicated "Post Scheduler" post status instead of using WordPress default "draft" status for better organization and clarity
+- **Individual User Exclusion**: Added ability to exclude specific individual users from author assignment, providing granular control over who can be assigned as authors
+- **Enhanced User Interface**: New admin interface section for selecting individual users to exclude from author assignment with clear user identification (display name and username)
+
+### Improved
+- **Post Status Management**: Custom post status is automatically registered during plugin activation and properly cleaned up during deactivation
+- **Author Assignment Logic**: Enhanced both random and round-robin author assignment to respect individual user exclusions in addition to role-based filtering
+- **Admin Experience**: Improved admin interface with better organization of author assignment settings and clearer user selection options
+
+### Technical Improvements
+- Added `register_custom_post_status()` method to register the "ksm_scheduled" post status with proper labels and capabilities
+- Enhanced `get_random_author()` and round-robin logic to filter out excluded users from the `excluded_users` setting
+- Updated plugin activation to set default post status to custom "ksm_scheduled" status
+- Added proper sanitization for `excluded_users` array in settings validation
+- Implemented automatic conversion of custom status posts back to draft during plugin deactivation
+- Updated admin page to display users with allowed roles for exclusion selection
+
+### Fixed
+- **Status Consistency**: Resolved potential conflicts with WordPress default post statuses by using dedicated custom status
+- **User Management**: Improved handling of user exclusions to prevent assignment of unwanted authors
+
+## [1.7.0] - 02/10/2025
+
+### Added
+- **Author Assignment System**: Comprehensive author assignment feature that allows random or round-robin assignment of post authors during scheduling
+- **Role-Based Author Selection**: Configure which user roles (Author, Editor, Administrator, etc.) can be assigned as post authors
+- **Assignment Strategies**: Choose between "Random" assignment or "Round Robin" rotation for consistent author distribution
+- **Author Assignment Status**: Real-time display of author assignment status, strategy, and eligible author count in the scheduling overview
+- **Progress Tracking**: Enhanced progress reports now show author changes during scheduling operations
+
+### Improved
+- **Unified Settings Interface**: Consolidated author assignment settings into a clean, intuitive admin interface
+- **Enhanced Validation**: Robust validation ensures only users with appropriate capabilities can be assigned as authors
+- **Better Error Handling**: Comprehensive error handling for edge cases like no eligible authors or invalid role configurations
+
+### Technical Improvements
+- Added `get_random_author()` helper method for intelligent author selection with exclusion logic
+- Enhanced `sanitize_settings()` method to validate author roles and assignment strategies
+- Improved scheduling algorithm to integrate author assignment seamlessly into the post scheduling workflow
+- Added comprehensive logging for author assignment operations and debugging
+
+### Removed
+- **Legacy User Rotation**: Removed old user rotation system in favor of the new unified author assignment system
+
+## [1.6.8] - 02/10/2025
+
+### Fixed
+- **Progress Report Chronological Ordering**: Fixed progress report to display scheduled posts in chronological order by publication time instead of processing order
+- **Enhanced Report Readability**: Improved day-by-day breakdown to show posts sorted by their actual scheduled times within each day
+
+### Technical Improvements
+- Added `$scheduled_posts_details` array to collect post scheduling information with timestamps
+- Implemented `usort()` function to sort posts chronologically before display
+- Enhanced progress report generation to group posts by date and sort by time within each day
+
+## [1.6.7] - 02/10/2025
+
+### Fixed
+- **Critical Scheduling Bug**: Fixed issue where posts intended for inactive days (Saturday/Sunday) were incorrectly accumulating on the next active day (Monday)
+- **Day Progression Logic**: Improved day advancement logic to properly skip inactive days without adding extra posts to active days
+- **Post Distribution**: Ensured posts are evenly distributed across active days only, preventing overload on specific days
+
+### Technical Improvements
+- Enhanced day-change logic in `schedule_posts()` function to find the next truly active day instead of just incrementing day offset
+- Added safeguards to prevent infinite loops when searching for next active day
+- Improved debug logging to track day advancement and active day detection
+- Fixed scheduling algorithm to respect inactive day settings and maintain proper post distribution
+
 ## [1.6.6] - 02/10/2025
 
 ### Improved
