@@ -2,6 +2,23 @@
 
 All notable changes to the KSM Post Scheduler plugin will be documented in this file.
 
+## [1.8.8] - 02/10/2025
+
+### Fixed
+- **"Ready to Schedule" Status Visibility**: Fixed issue where the "Ready to Schedule" status was not appearing in WordPress native status dropdowns
+  - Completely rewrote custom post status integration to work with WordPress native UI
+  - Removed invalid `post_type` parameter from `register_post_status()` function
+  - Implemented proper JavaScript integration for post edit screens, quick edit, and bulk edit
+  - Added comprehensive status dropdown handling for all WordPress admin screens
+  - Status now appears correctly in single post edit, new post, and posts list screens
+
+### Technical Changes
+- Replaced old `add_custom_status_to_edit_screen()` method with new `add_status_to_dropdown()` method
+- Added proper admin_head hooks for post.php, post-new.php, and edit.php screens
+- Enhanced JavaScript to handle dynamic status dropdown population
+- Improved status display text handling and visual styling
+- Removed redundant bulk edit methods and consolidated functionality
+
 ## [1.8.7] - 02/10/2025
 
 ### Fixed
