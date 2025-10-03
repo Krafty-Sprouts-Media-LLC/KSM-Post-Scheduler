@@ -674,11 +674,29 @@
 .ksm-ps-deficit {
     color: #dc3545 !important;
     font-weight: 600;
+    background: transparent !important;
+    border: none !important;
+    text-decoration: none !important;
 }
 
 .ksm-ps-complete {
     color: #28a745 !important;
     font-weight: 600;
+    background: transparent !important;
+    border: none !important;
+    text-decoration: none !important;
+}
+
+/* Specific styling for Total Deficit to prevent WordPress admin interference */
+.ksm-ps-total-deficit {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    outline: none !important;
+    text-decoration: none !important;
+    display: inline !important;
+    padding: 0 !important;
+    margin: 0 !important;
 }
 
 .ksm-ps-status-complete {

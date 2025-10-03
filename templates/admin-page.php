@@ -576,7 +576,7 @@ if (!defined('ABSPATH')) {
                 
                 <!-- Auto-Completion Status Section -->
                 <div class="ksm-ps-overview-section">
-                    <h4 class="ksm-ps-section-title"><?php _e('Auto-Completion Status:', 'ksm-post-scheduler'); ?></h4>
+                    <h4 class="ksm-ps-section-title"><?php _e('Daily Quota Completion Status:', 'ksm-post-scheduler'); ?></h4>
                     <?php
                     // Get deficit information
                     $deficits = $this->get_deficits();
@@ -586,7 +586,7 @@ if (!defined('ABSPATH')) {
                     
                     <div class="ksm-ps-overview-item">
                         <strong><?php _e('Total Deficit:', 'ksm-post-scheduler'); ?></strong>
-                        <span class="ksm-ps-count <?php echo $total_deficit > 0 ? 'ksm-ps-deficit' : 'ksm-ps-complete'; ?>">
+                        <span class="ksm-ps-count ksm-ps-total-deficit <?php echo $total_deficit > 0 ? 'ksm-ps-deficit' : 'ksm-ps-complete'; ?>">
                             <?php echo esc_html($total_deficit); ?> <?php _e('posts', 'ksm-post-scheduler'); ?>
                         </span>
                     </div>
