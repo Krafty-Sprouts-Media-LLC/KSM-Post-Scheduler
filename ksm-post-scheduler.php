@@ -3,7 +3,7 @@
  * Plugin Name: KSM Post Scheduler
  * Plugin URI: https://kraftysprouts.com
  * Description: Automatically schedules posts from a specific status to publish at random times
- * Version: 1.9.3
+ * Version: 1.9.6
  * Author: Krafty Sprouts Media, LLC
  * Author URI: https://kraftysprouts.com
  * License: GPL v2 or later
@@ -16,7 +16,7 @@
  * Network: false
  * 
  * @package KSM_Post_Scheduler
- * @version 1.8.0
+ * @version 1.9.6
  * @author KraftySpoutsMedia, LLC
  * @copyright 2025 KraftySpouts
  * @license GPL-2.0-or-later
@@ -688,6 +688,9 @@ class KSM_PS_Main {
             return;
         }
         
+        // DEFICIT DETECTION: Check if yesterday met its quota before scheduling today
+        $this->detect_and_record_deficit();
+        
         // Check if today is an active day (using WordPress timezone)
         $today = strtolower(current_time('l'));
         if (!in_array($today, $options['days_active'] ?? array())) {
@@ -869,6 +872,10 @@ class KSM_PS_Main {
         // Manual scheduling can now distribute posts across future dates like cron runs
         // FIXED: Remove artificial limit to allow scheduling of all available posts
         
+        // Initialize progress tracking for manual runs
+        $progress_report = array();
+        $scheduled_posts_details = array(); // For chronological sorting
+        
         // Get posts to schedule
         $post_status = $options['post_status'] ?? 'draft';
         $posts = get_posts(array(
@@ -894,6 +901,38 @@ class KSM_PS_Main {
             );
         }
         
+        // SMART BACKFILL: Apply auto-completion feature before regular scheduling
+        // This ensures deficit days are filled first before scheduling future posts
+        $backfill_results = $this->apply_smart_backfill($posts, $options);
+        
+        // If backfill was applied, update our posts array and add progress info
+        if (!empty($backfill_results['backfill_scheduled'])) {
+            $progress_report[] = "🔄 Auto-completion: Filled " . count($backfill_results['backfill_scheduled']) . " deficit posts for incomplete days";
+            
+            // Schedule the backfill posts
+            $backfill_schedule_results = $this->schedule_backfill_posts($backfill_results['backfill_posts'], $options, !$is_cron_run);
+            
+            // Add backfill results to progress
+            if (!empty($backfill_schedule_results)) {
+                foreach ($backfill_schedule_results as $date => $date_results) {
+                    $progress_report[] = "✅ Completed " . count($date_results) . " posts for " . wp_date('l, M j', strtotime($date));
+                }
+            }
+        }
+        
+        // Continue with remaining posts for future scheduling
+        $posts = $backfill_results['remaining_posts'] ?? $posts;
+        
+        // If no posts remain after backfill, we're done
+        if (empty($posts)) {
+            return array(
+                'success' => true,
+                'message' => __('All available posts were used for auto-completion of incomplete days.', 'ksm-post-scheduler'),
+                'progress_report' => $progress_report ?? array(),
+                'scheduled_posts' => $backfill_schedule_results ?? array()
+            );
+        }
+        
         // Get time settings
         $start_time = $options['start_time'] ?? '9:00 AM';
         $end_time = $options['end_time'] ?? '6:00 PM';
@@ -902,9 +941,7 @@ class KSM_PS_Main {
         
 
         
-        // Initialize progress tracking for manual runs
-        $progress_report = array();
-        $scheduled_posts_details = array(); // For chronological sorting
+        // Update total posts count after backfill
         $total_posts_to_schedule = count($posts);
         
         // Convert start and end times to minutes for easier calculation
@@ -1757,6 +1794,291 @@ class KSM_PS_Main {
                 'message' => __('An unexpected error occurred while dismissing the notice.', 'ksm-post-scheduler')
             ));
         }
+    }
+
+    /**
+     * Get deficit tracking data
+     * 
+     * @return array Array of date => deficit_count pairs
+     * @since 1.9.6
+     */
+    private function get_deficits() {
+        return get_option('ksm_ps_deficits', array());
+    }
+
+    /**
+     * Update deficit tracking data
+     * 
+     * @param array $deficits Array of date => deficit_count pairs
+     * @since 1.9.6
+     */
+    private function update_deficits($deficits) {
+        // Clean up old deficits (older than 30 days)
+        $cutoff_date = date('Y-m-d', strtotime('-30 days'));
+        foreach ($deficits as $date => $count) {
+            if ($date < $cutoff_date) {
+                unset($deficits[$date]);
+            }
+        }
+        
+        update_option('ksm_ps_deficits', $deficits);
+    }
+
+    /**
+     * Record a deficit for a specific date
+     * 
+     * @param string $date Date in Y-m-d format
+     * @param int $deficit_count Number of posts short of quota
+     * @since 1.9.6
+     */
+    private function record_deficit($date, $deficit_count) {
+        if ($deficit_count <= 0) {
+            return;
+        }
+
+        $deficits = $this->get_deficits();
+        $deficits[$date] = $deficit_count;
+        $this->update_deficits($deficits);
+
+        error_log("KSM Post Scheduler: Recorded deficit of {$deficit_count} posts for {$date}");
+    }
+
+    /**
+     * Clear deficit for a specific date
+     * 
+     * @param string $date Date in Y-m-d format
+     * @since 1.9.6
+     */
+    private function clear_deficit($date) {
+        $deficits = $this->get_deficits();
+        if (isset($deficits[$date])) {
+            unset($deficits[$date]);
+            $this->update_deficits($deficits);
+            error_log("KSM Post Scheduler: Cleared deficit for {$date}");
+        }
+    }
+
+    /**
+     * Get total deficit count across all incomplete days
+     * 
+     * @return int Total number of posts needed to complete all deficits
+     * @since 1.9.6
+     */
+    private function get_total_deficit() {
+        $deficits = $this->get_deficits();
+        return array_sum($deficits);
+    }
+
+    /**
+     * Get the oldest incomplete day that needs backfilling
+     * 
+     * @return string|null Date in Y-m-d format or null if no deficits
+     * @since 1.9.6
+     */
+    private function get_oldest_deficit_date() {
+        $deficits = $this->get_deficits();
+        if (empty($deficits)) {
+            return null;
+        }
+
+        ksort($deficits); // Sort by date (oldest first)
+        return array_key_first($deficits);
+    }
+
+    /**
+     * Check if a date has been completed (no deficit)
+     * 
+     * @param string $date Date in Y-m-d format
+     * @return bool True if date is complete, false if it has a deficit
+     * @since 1.9.6
+     */
+    private function is_date_complete($date) {
+        $deficits = $this->get_deficits();
+        return !isset($deficits[$date]);
+    }
+
+    /**
+     * Detect and record deficits after scheduling posts
+     * This should be called after the main scheduling logic
+     * 
+     * @param string $target_date Date that was scheduled for (Y-m-d format)
+     * @param int $posts_scheduled Number of posts actually scheduled
+     * @param int $posts_per_day Target posts per day from settings
+     * @since 1.9.6
+     */
+    private function detect_and_record_deficit($target_date, $posts_scheduled, $posts_per_day) {
+        // Only record deficits for past or current dates
+        $today = date('Y-m-d');
+        if ($target_date > $today) {
+            return; // Don't record deficits for future dates
+        }
+
+        $deficit = $posts_per_day - $posts_scheduled;
+        
+        if ($deficit > 0) {
+            $this->record_deficit($target_date, $deficit);
+        } else {
+            // If we met or exceeded the quota, clear any existing deficit
+            $this->clear_deficit($target_date);
+        }
+    }
+
+    /**
+     * Smart backfill algorithm - completes deficit days before scheduling future posts
+     * 
+     * @param array $available_posts Array of post objects available for scheduling
+     * @param array $options Plugin settings
+     * @return array Modified array with posts allocated for backfill and future scheduling
+     * @since 1.9.6
+     */
+    private function apply_smart_backfill(&$available_posts, $options) {
+        $deficits = $this->get_deficits();
+        if (empty($deficits) || empty($available_posts)) {
+            return array(
+                'backfill_posts' => array(),
+                'future_posts' => $available_posts
+            );
+        }
+
+        $posts_per_day = intval($options['posts_per_day'] ?? 1);
+        $backfill_posts = array();
+        $remaining_posts = $available_posts;
+
+        // Sort deficits by date (oldest first)
+        ksort($deficits);
+
+        foreach ($deficits as $deficit_date => $deficit_count) {
+            if (empty($remaining_posts)) {
+                break; // No more posts available
+            }
+
+            // Take posts for this deficit date
+            $posts_for_date = array_splice($remaining_posts, 0, min($deficit_count, count($remaining_posts)));
+            
+            if (!empty($posts_for_date)) {
+                $backfill_posts[$deficit_date] = $posts_for_date;
+                
+                // If we filled the deficit completely, clear it
+                if (count($posts_for_date) >= $deficit_count) {
+                    $this->clear_deficit($deficit_date);
+                } else {
+                    // Update the deficit with remaining count
+                    $remaining_deficit = $deficit_count - count($posts_for_date);
+                    $this->record_deficit($deficit_date, $remaining_deficit);
+                }
+            }
+        }
+
+        return array(
+            'backfill_posts' => $backfill_posts,
+            'future_posts' => $remaining_posts
+        );
+    }
+
+    /**
+     * Schedule posts for backfill (completing deficit days)
+     * 
+     * @param array $backfill_posts Array of posts grouped by date
+     * @param array $options Plugin settings
+     * @param bool $is_manual Whether this is a manual run
+     * @return array Results of backfill scheduling
+     * @since 1.9.6
+     */
+    private function schedule_backfill_posts($backfill_posts, $options, $is_manual = false) {
+        $results = array();
+        $total_scheduled = 0;
+
+        foreach ($backfill_posts as $date => $posts) {
+            $date_results = $this->schedule_posts_for_specific_date($posts, $date, $options, $is_manual);
+            $results[$date] = $date_results;
+            $total_scheduled += count($date_results['scheduled']);
+        }
+
+        if ($total_scheduled > 0) {
+            error_log("KSM Post Scheduler: Backfilled {$total_scheduled} posts across " . count($backfill_posts) . " deficit days");
+        }
+
+        return array(
+            'total_scheduled' => $total_scheduled,
+            'dates' => $results
+        );
+    }
+
+    /**
+     * Schedule posts for a specific date (used for backfilling)
+     * 
+     * @param array $posts Array of post objects
+     * @param string $target_date Date in Y-m-d format
+     * @param array $options Plugin settings
+     * @param bool $is_manual Whether this is a manual run
+     * @return array Results of scheduling
+     * @since 1.9.6
+     */
+    private function schedule_posts_for_specific_date($posts, $target_date, $options, $is_manual = false) {
+        $scheduled = array();
+        $errors = array();
+
+        if (empty($posts)) {
+            return array('scheduled' => $scheduled, 'errors' => $errors);
+        }
+
+        // Get time settings
+        $start_time = $options['start_time'] ?? '09:00';
+        $end_time = $options['end_time'] ?? '17:00';
+        $min_interval = intval($options['min_interval'] ?? 60);
+
+        // Generate random times for this date
+        $times = $this->generate_random_times(count($posts), $start_time, $end_time, $min_interval);
+
+        foreach ($posts as $index => $post) {
+            if (!isset($times[$index])) {
+                continue;
+            }
+
+            $time = $times[$index];
+            $datetime_str = $target_date . ' ' . $time;
+            
+            // Convert to WordPress timezone
+            $wp_timezone = wp_timezone();
+            $datetime = new DateTime($datetime_str, $wp_timezone);
+            $timestamp = $datetime->getTimestamp();
+
+            // For backfill, we schedule immediately (don't check if time is in future)
+            $mysql_date = $datetime->format('Y-m-d H:i:s');
+
+            try {
+                // Update post
+                $result = wp_update_post(array(
+                    'ID' => $post->ID,
+                    'post_status' => 'future',
+                    'post_date' => $mysql_date,
+                    'post_date_gmt' => get_gmt_from_date($mysql_date)
+                ));
+
+                if (is_wp_error($result)) {
+                    $errors[] = "Failed to schedule post {$post->ID}: " . $result->get_error_message();
+                    continue;
+                }
+
+                // Schedule publication event
+                wp_schedule_single_event($timestamp, 'ksm_ps_publish_post_' . $post->ID, array($post->ID));
+
+                $scheduled[] = array(
+                    'post_id' => $post->ID,
+                    'title' => $post->post_title,
+                    'scheduled_time' => $datetime_str,
+                    'timestamp' => $timestamp
+                );
+
+                error_log("KSM Post Scheduler: Backfilled post {$post->ID} for {$target_date} at {$time}");
+
+            } catch (Exception $e) {
+                $errors[] = "Exception scheduling post {$post->ID}: " . $e->getMessage();
+                error_log("KSM Post Scheduler Error (backfill): " . $e->getMessage());
+            }
+        }
+
+        return array('scheduled' => $scheduled, 'errors' => $errors);
     }
     
 

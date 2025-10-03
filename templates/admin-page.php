@@ -517,18 +517,34 @@ if (!defined('ABSPATH')) {
                             <span>
                                 <?php
                                 $allowed_roles = $options['allowed_author_roles'] ?? array();
+                                $excluded_users = $options['excluded_users'] ?? array();
                                 $eligible_count = 0;
                                 if (!empty($allowed_roles)) {
                                     $users = get_users(array(
                                         'role__in' => $allowed_roles,
                                         'fields' => 'ID'
                                     ));
-                                    $eligible_count = count($users);
+                                    // Filter out excluded users
+                                    $eligible_users = array_filter($users, function($user_id) use ($excluded_users) {
+                                        return !in_array($user_id, $excluded_users);
+                                    });
+                                    $eligible_count = count($eligible_users);
                                 }
                                 echo esc_html($eligible_count) . ' ' . __('users', 'ksm-post-scheduler');
                                 ?>
                             </span>
                         </div>
+                        
+                        <?php if (!empty($excluded_users)): ?>
+                        <div class="ksm-ps-overview-item">
+                            <strong><?php _e('Excluded Authors:', 'ksm-post-scheduler'); ?></strong>
+                            <span>
+                                <?php
+                                echo esc_html(count($excluded_users)) . ' ' . __('users', 'ksm-post-scheduler');
+                                ?>
+                            </span>
+                        </div>
+                        <?php endif; ?>
                     <?php endif; ?>
                 </div>
                 
@@ -554,6 +570,73 @@ if (!defined('ABSPATH')) {
                         </div>
                     </div>
                 <?php endif; ?>
+                
+                <!-- Visual Separator -->
+                <hr class="ksm-ps-section-divider">
+                
+                <!-- Auto-Completion Status Section -->
+                <div class="ksm-ps-overview-section">
+                    <h4 class="ksm-ps-section-title"><?php _e('Auto-Completion Status:', 'ksm-post-scheduler'); ?></h4>
+                    <?php
+                    // Get deficit information
+                    $deficits = $this->get_deficits();
+                    $total_deficit = $this->get_total_deficit();
+                    $oldest_deficit_date = $this->get_oldest_deficit_date();
+                    ?>
+                    
+                    <div class="ksm-ps-overview-item">
+                        <strong><?php _e('Total Deficit:', 'ksm-post-scheduler'); ?></strong>
+                        <span class="ksm-ps-count <?php echo $total_deficit > 0 ? 'ksm-ps-deficit' : 'ksm-ps-complete'; ?>">
+                            <?php echo esc_html($total_deficit); ?> <?php _e('posts', 'ksm-post-scheduler'); ?>
+                        </span>
+                    </div>
+                    
+                    <?php if ($total_deficit > 0): ?>
+                        <div class="ksm-ps-overview-item">
+                            <strong><?php _e('Incomplete Days:', 'ksm-post-scheduler'); ?></strong>
+                            <span class="ksm-ps-count"><?php echo esc_html(count($deficits)); ?> <?php _e('days', 'ksm-post-scheduler'); ?></span>
+                        </div>
+                        
+                        <?php if ($oldest_deficit_date): ?>
+                            <div class="ksm-ps-overview-item">
+                                <strong><?php _e('Oldest Deficit:', 'ksm-post-scheduler'); ?></strong>
+                                <span class="ksm-ps-time">
+                                    <?php echo esc_html(wp_date(get_option('date_format'), strtotime($oldest_deficit_date))); ?>
+                                </span>
+                            </div>
+                        <?php endif; ?>
+                        
+                        <!-- Recent Deficits List -->
+                        <?php if (!empty($deficits)): ?>
+                            <div class="ksm-ps-deficit-list">
+                                <strong><?php _e('Recent Incomplete Days:', 'ksm-post-scheduler'); ?></strong>
+                                <div class="ksm-ps-deficit-items">
+                                    <?php
+                                    // Show only the 5 most recent deficits
+                                    $recent_deficits = array_slice($deficits, -5, 5, true);
+                                    krsort($recent_deficits); // Show newest first
+                                    foreach ($recent_deficits as $date => $deficit_count):
+                                    ?>
+                                        <div class="ksm-ps-deficit-item">
+                                            <span class="ksm-ps-deficit-date">
+                                                <?php echo esc_html(wp_date('M j', strtotime($date))); ?>
+                                            </span>
+                                            <span class="ksm-ps-deficit-count">
+                                                -<?php echo esc_html($deficit_count); ?>
+                                            </span>
+                                        </div>
+                                    <?php endforeach; ?>
+                                </div>
+                            </div>
+                        <?php endif; ?>
+                    <?php else: ?>
+                        <div class="ksm-ps-overview-item">
+                            <span class="ksm-ps-status-complete">
+                                <?php _e('All daily quotas are up to date!', 'ksm-post-scheduler'); ?>
+                            </span>
+                        </div>
+                    <?php endif; ?>
+                </div>
             </div>
             
 

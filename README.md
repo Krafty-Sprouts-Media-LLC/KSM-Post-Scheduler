@@ -8,12 +8,14 @@ KSM Post Scheduler helps you maintain a consistent posting schedule by automatic
 
 ## Features
 
+- **Smart Auto-Completion**: Automatically fills missed daily quotas by prioritizing older deficits
+- **Deficit Tracking**: Monitors incomplete days and tracks post shortfalls
 - **Flexible Post Status Monitoring**: Choose which post status to monitor for scheduling
 - **Customizable Schedule**: Set daily post limits, time ranges, and active days
 - **Random Timing**: Posts are scheduled at random times to create natural posting patterns
 - **Minimum Intervals**: Ensure posts don't publish too close together
 - **Manual Scheduling**: Run the scheduler manually to schedule posts immediately
-- **Status Dashboard**: View current statistics and upcoming scheduled posts
+- **Status Dashboard**: View current statistics, upcoming scheduled posts, and deficit status
 - **WordPress Cron Integration**: Uses WordPress's built-in cron system
 - **Security First**: Includes proper nonces, sanitization, and capability checks
 
@@ -59,12 +61,30 @@ The settings page includes a status dashboard showing:
 5. **Interval Respect**: Ensures posts are scheduled with the minimum interval between them
 6. **Status Update**: Changes post status to 'future' with the calculated publish time
 
+## Auto-Completion System
+
+The plugin includes an intelligent auto-completion system that ensures your daily posting quotas are always met:
+
+### How It Works
+- **Deficit Detection**: The daily cron job automatically detects when daily quotas are not met
+- **Smart Backfill**: When scheduling new posts, the system prioritizes filling past deficits before scheduling for future dates
+- **Oldest First**: Deficits are filled in chronological order, ensuring the oldest missed days are completed first
+- **Automatic Cleanup**: Deficit records older than 30 days are automatically removed
+
+### Admin Interface
+The settings page displays your auto-completion status:
+- **Total Deficit**: Shows the total number of posts needed to complete all incomplete days
+- **Incomplete Days**: Number of days that didn't meet their quota
+- **Recent History**: List of the 5 most recent incomplete days with their deficit counts
+- **Color Coding**: Green indicates all quotas are up to date, red shows active deficits
+
 ## Manual Scheduling
 
 Use the "Schedule Posts Now" button on the settings page to manually execute the scheduler and schedule all pending draft posts immediately. This allows you to:
 - Schedule all draft posts without waiting for the automatic cron
 - See detailed progress reports of the scheduling process
 - Verify your configuration and timing settings work as expected
+- Automatically fill any existing deficits with available posts
 
 ## Requirements
 

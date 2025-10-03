@@ -2,6 +2,45 @@
 
 All notable changes to the KSM Post Scheduler plugin will be documented in this file.
 
+## [1.9.6] - 03/10/2025
+
+### MAJOR FEATURE: AUTO-COMPLETION SYSTEM
+- **NEW**: Smart Auto-Completion feature that automatically fills missed daily quotas
+- **ADDED**: Deficit tracking system to monitor incomplete days and their post shortfalls
+- **ADDED**: Smart backfill algorithm that prioritizes older deficits when scheduling new posts
+- **ADDED**: Admin interface showing deficit status, incomplete days count, and recent deficit history
+- **ENHANCED**: Daily cron job now detects and records when quotas are not met
+- **IMPROVED**: Scheduling logic now automatically allocates available posts to fill past deficits before scheduling for future dates
+- **VISUAL**: New "Auto-Completion Status" section in admin sidebar with color-coded deficit indicators
+
+### Technical Implementation
+- Added deficit tracking methods: `get_deficits()`, `record_deficit()`, `clear_deficit()`, `get_total_deficit()`
+- Implemented smart backfill algorithm with `apply_smart_backfill()` and `schedule_backfill_posts()`
+- Enhanced cron job with `detect_and_record_deficit()` for automatic deficit detection
+- Added WordPress options-based storage for deficit data with 30-day cleanup
+- Integrated backfill logic into main `schedule_posts()` method for seamless operation
+
+## [1.9.5] - 03/10/2025
+
+### CRITICAL AUTHOR EXCLUSION FIX
+- **FIXED**: "Eligible Authors" count now properly excludes selected authors from the total
+- **ADDED**: Missing "Excluded Authors" section to display count of excluded users in sidebar
+- **FIXED**: Author filtering logic to ensure excluded users are not counted as eligible authors
+- **IMPROVED**: Author assignment accuracy by ensuring proper exclusion logic in admin display
+
+### Technical Details
+- Fixed array filtering in admin-page.php to properly subtract excluded users from eligible count
+- Added conditional display of "Excluded Authors" section when excluded users exist
+- Used array_filter() with anonymous function for clean exclusion logic
+- Maintains proper count accuracy: Total = Eligible + Excluded
+
+## [1.9.4] - 03/10/2025
+
+### Enhanced
+- **UI IMPROVEMENT**: Moved "Time Analysis & Scheduling Validation" section from main content area to sidebar under "Scheduling Overview"
+- **BETTER VISIBILITY**: Time Analysis now displays alongside other status indicators for improved live update visibility
+- **ENHANCED UX**: Consolidated scheduling information in the sidebar for better organization and user experience
+
 ## [1.9.3] - 03/10/2025
 
 ### CRITICAL TIMEZONE FIX
