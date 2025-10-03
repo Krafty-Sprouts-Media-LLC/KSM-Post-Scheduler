@@ -2,6 +2,15 @@
 
 All notable changes to the KSM Post Scheduler plugin will be documented in this file.
 
+## [1.9.3] - 03/10/2025
+
+### CRITICAL TIMEZONE FIX
+- **FIXED**: CRON scheduling now uses WordPress timezone instead of server timezone
+- **FIXED**: Replaced `strtotime('tomorrow midnight')` with WordPress timezone-aware `DateTime` object
+- **FIXED**: CRON now correctly schedules for 1:00 AM in WordPress timezone instead of midnight in server timezone
+- **IMPROVED**: Eliminated timezone conversion issues that caused CRON to run at unexpected times
+- **ENHANCED**: Consistent timezone handling throughout the plugin using `wp_timezone()`
+
 ## [1.9.2] - 02/10/2025
 
 ### Fixed

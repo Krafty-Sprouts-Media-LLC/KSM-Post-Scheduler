@@ -3,7 +3,7 @@
  * Plugin Name: KSM Post Scheduler
  * Plugin URI: https://kraftysprouts.com
  * Description: Automatically schedules posts from a specific status to publish at random times
- * Version: 1.9.2
+ * Version: 1.9.3
  * Author: Krafty Sprouts Media, LLC
  * Author URI: https://kraftysprouts.com
  * License: GPL v2 or later
@@ -38,7 +38,7 @@ if (!defined('ABSPATH')) {
 }
 
 // Define plugin constants
-define('KSM_PS_VERSION', '1.9.2');
+define('KSM_PS_VERSION', '1.9.3');
 define('KSM_PS_PLUGIN_FILE', __FILE__);
 define('KSM_PS_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('KSM_PS_PLUGIN_URL', plugin_dir_url(__FILE__));
@@ -189,9 +189,12 @@ class KSM_PS_Main {
             update_option($this->option_name, $updated_options);
         }
         
-        // Schedule cron job
+        // Schedule cron job using WordPress timezone
         if (!wp_next_scheduled($this->cron_hook)) {
-            wp_schedule_event(strtotime('tomorrow midnight'), 'daily', $this->cron_hook);
+            // Use WordPress timezone-aware scheduling instead of server timezone
+            $wp_timezone = wp_timezone();
+            $tomorrow_1am = new DateTime('tomorrow 1:00 AM', $wp_timezone);
+            wp_schedule_event($tomorrow_1am->getTimestamp(), 'daily', $this->cron_hook);
         }
         
         // Set activation flag for admin notice
